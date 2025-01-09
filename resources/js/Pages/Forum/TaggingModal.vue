@@ -4,15 +4,18 @@
       <h2 class="text-xl font-semibold mb-4">Escolher Tags</h2>
 
       <!-- Multiselect Component -->
-      <multiselect
-        v-model="selectedTagsInternal"
-        :options="options"
-        label="name"
-        track-by="code"
-        :multiple="true"
-        placeholder="Selecione ou adicione tags"
-        :taggable="false"
-      ></multiselect>
+      <multiselect v-model="selectedTagsInternal" :options="options" label="name" track-by="id" :multiple="true"
+        placeholder="Selecione ou adicione tags" :taggable="false">
+
+        <!-- Customização do item no dropdown -->
+        <template #option="{ option }">
+          <span class="flex items-center space-x-2">
+            <span class="w-4 h-4 rounded-full" :style="{ backgroundColor: option.color || '#ccc' }"></span>
+            <span>{{ option.name }}</span>
+          </span>
+        </template>
+
+      </multiselect>
 
       <div class="mt-4 flex justify-end">
         <button @click="submitSelection" class="bg-blue-500 text-white p-2 rounded">Selecionar</button>
@@ -46,38 +49,35 @@ export default {
   methods: {
     // Função que carrega as tags da API
     async loadTags() {
-  try {
-    const { data } = await axios.get('/show');
-    console.log('Tags carregadas:', data);  // Verifique os dados retornados pela API
+      try {
+        const { data } = await axios.get('/show');
+        console.log('Tags carregadas:', data);
 
-    
-    this.options = data.map((tag) => ({
-      id: tag.id,
-      name: tag.name,
-      code: tag.code,
-    // this.options = data.map((tag, index) => ({
-    //   id: tag.id || `temp-id-${index}`,  // Atribui um id temporário se for null
-    //   name: tag.name,  // 'name' não está null, então deixamos ele como está
-    //   code: tag.code,  // 'code' também não está null
-    }));
+        this.options = data.map(tag => ({
+          id: tag.id,
+          name: tag.name,
+          code: tag.code,
+          color: tag.color || '#ccc', // Cor padrão caso a tag não tenha uma cor definida
+        }));
 
-    this.selectedTagsInternal = [...this.selectedTags];  // Mantém as tags passadas
-  } catch (error) {
-    console.error('Erro ao carregar tags:', error);
-  }
-},
+        this.selectedTagsInternal = [...this.selectedTags];
+      } catch (error) {
+        console.error('Erro ao carregar tags:', error);
+      }
+    },
 
 
 
-selectTags() {
-  const tags = this.selectedTagsInternal.map(tag => ({
-    id: tag.id || `temp-id-${Math.random()}`, // Atribui um id temporário se for null
-    name: tag.name || '',  // Garantir que 'name' não seja nulo
-    code: tag.code || null, // Garantir que 'code' não seja nulo
-  }));
 
-  this.$emit('select-tags', tags);  // Emite as tags para o componente pai
-},
+    selectTags() {
+      const tags = this.selectedTagsInternal.map(tag => ({
+        id: tag.id || `temp-id-${Math.random()}`, // Atribui um id temporário se for null
+        name: tag.name || '',  // Garantir que 'name' não seja nulo
+        code: tag.code || null, // Garantir que 'code' não seja nulo
+      }));
+
+      this.$emit('select-tags', tags);  // Emite as tags para o componente pai
+    },
     // Envia as tags selecionadas para o componente pai
     submitSelection() {
       // Emite as tags selecionadas com 'code' ao invés de 'id'

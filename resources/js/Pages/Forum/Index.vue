@@ -4,22 +4,18 @@
         <header class="w-full bg-white shadow-md p-4">
             <!-- Navegação -->
             <nav class="flex justify-center w-full space-x-4 items-center">
-                <a
-                    href="/dashboard"
+                <a href="/dashboard"
                     class="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-transform transform hover:-translate-y-1"
                     :class="{ 'bg-indigo-500 text-white': activeMenu === 'dashboard' }"
                     @click="setActiveMenu('dashboard')">
                     Dashboard
                 </a>
-                <a
-                    href="/forum"
+                <a href="/forum"
                     class="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-transform transform hover:-translate-y-1"
-                    :class="{ 'bg-indigo-500 text-white': activeMenu === 'forum' }"
-                    @click="setActiveMenu('forum')">
+                    :class="{ 'bg-indigo-500 text-white': activeMenu === 'forum' }" @click="setActiveMenu('forum')">
                     Fórum
                 </a>
-                <a
-                    href="/meus-posts"
+                <a href="/meus-posts"
                     class="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-transform transform hover:-translate-y-1"
                     :class="{ 'bg-indigo-500 text-white': activeMenu === 'meus-posts' }"
                     @click="setActiveMenu('meus-posts')">
@@ -52,19 +48,16 @@
             <!-- Menu Lateral -->
             <aside class="w-1/4 bg-white shadow-md p-6">
                 <!-- Botão Criar Post -->
-                <button
-                    @click="openCreatePostModal"
+                <button @click="openCreatePostModal"
                     class="w-full py-2 px-4 mb-4 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 shadow-md transition-transform transform hover:-translate-y-1">
                     + Criar Post
                 </button>
                 <h2 class="text-xl font-bold text-gray-700 mb-4">Categorias</h2>
-                <button
-                    @click="filterPosts('Suporte')"
+                <button @click="filterPosts('Suporte')"
                     class="w-full py-2 px-4 mb-4 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 shadow-md transition-transform transform hover:-translate-y-1">
                     Suporte
                 </button>
-                <button
-                    @click="filterPosts('Sugestão')"
+                <button @click="filterPosts('Sugestão')"
                     class="w-full py-2 px-4 mb-4 bg-green-500 text-white font-medium rounded-lg hover:bg-green-600 shadow-md transition-transform transform hover:-translate-y-1">
                     Sugestão
                 </button>
@@ -84,9 +77,7 @@
                 </div>
 
                 <!-- Lista de Posts -->
-                <div
-                    v-for="post in posts.data"
-                    :key="post.id"
+                <div v-for="post in posts.data" :key="post.id"
                     class="mb-6 bg-white p-6 shadow-lg rounded-lg transition-transform transform hover:-translate-y-1 hover:shadow-xl">
                     <div class="flex justify-between items-start">
                         <div>
@@ -100,10 +91,7 @@
 
                     <!-- Tags -->
                     <div class="mt-4">
-                        <span
-                            v-for="tag in post.tags"
-                            :key="tag.id"
-                            :style="{ backgroundColor: tag.color }"
+                        <span v-for="tag in post.tags" :key="tag.id" :style="{ backgroundColor: tag.color }"
                             class="inline-block px-3 py-1 mr-2 rounded text-sm text-white font-medium"
                             style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);">
                             {{ tag.name }}
