@@ -1,6 +1,7 @@
 import './bootstrap';
 import '../css/app.css';
-
+import PrimeVue from 'primevue/config';
+import Aura from '@primevue/themes/aura';
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
@@ -16,6 +17,11 @@ createInertiaApp({
         return createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue)
+            .use(PrimeVue, {
+                theme: {
+                    preset: Aura
+                }
+            })
             .mount(el);
     },
     progress: {

@@ -1,6 +1,6 @@
 <template>
     <div class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-        <div class="bg-white rounded shadow p-6 w-full max-w-lg">
+        <div class="bg-white rounded shadow p-6 w-full max-w-lg text-black">
             <h2 class="text-xl font-semibold mb-4">Criar Novo Post</h2>
             <div class="mb-4">
                 <label for="title" class="block text-sm font-medium text-gray-700">Título</label>
@@ -24,12 +24,12 @@
 
             <div v-if="newPost.tags.length > 0" class="mb-4">
                 <h3 class="font-medium text-gray-700">Tags Selecionadas:</h3>
-                <ul class="list-disc list-inside">
-                    <li v-for="(tag, index) in newPost.tags" :key="index" class="flex items-center space-x-2">
-                        <span class="w-4 h-4 rounded-full" :style="{ backgroundColor: tag.color || '#ccc' }"></span>
+                <span class="list-disc list-inside">
+                    <span v-for="(tag, index) in newPost.tags" :key="index" class="flex items-center text-black space-x-2">
+                        <span class="w-4 h-4 rounded-full" :style="{ backgroundColor: tag.color } "></span>
                         <span>{{ tag?.name }}</span>
-                    </li>
-                </ul>
+                    </span>
+                </span>
             </div>
 
             <p v-if="errors.tags" class="text-red-500 text-sm mt-1">{{ errors.tags }}</p>
