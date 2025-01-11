@@ -19,6 +19,13 @@
             title="Escolha uma cor para a tag"
             />
 
+            <input
+            v-model="newTag.icon"
+            type="text"
+            placeholder="Ícone (ex: pi pi-github)"
+            class="flex-1 p-2 border rounded focus:outline-none focus:ring focus:ring-indigo-300"
+            />
+
           <button
             type="submit"
             class="bg-indigo-500 text-white py-2 px-4 rounded hover:bg-indigo-600"
@@ -39,6 +46,8 @@
           >
             <span>{{ tag.name }}</span>
             <span :style="{ backgroundColor: tag.color, color: 'white', padding: '5px', borderRadius: '5px' }"> {{ tag.code }} </span>
+            <span>{{ tag.icon }}</span>
+
             <button
               @click="deleteTag(tag.id)"
               class="text-red-500 hover:text-red-700"
@@ -75,7 +84,8 @@
           onSuccess: () => {
             newTag.value.name = '';
             newTag.value.code = ''; // Limpar o código
-            newTag.value.color = '#000000'; // Resetar para cor padrão
+            newTag.value.color = '#000000';
+            newTag.value.icon = '';
             errors.value = {};
           },
           onError: (err) => {

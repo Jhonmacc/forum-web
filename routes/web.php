@@ -27,25 +27,22 @@ Route::middleware([
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
-   // Fórum
+  // Fórum
     Route::prefix('forum')->group(function () {
-    Route::get('/', [ForumController::class, 'index'])->name('forum.index');
-    Route::get('/post/{id}', [ForumController::class, 'show'])->name('forum.post.show');
+        Route::get('/', [ForumController::class, 'index'])->name('forum.index');
     });
-
-
     // Posts
-Route::prefix('posts')->group(function () {
-    Route::post('/', [PostsController::class, 'store'])->name('posts.store');
-    Route::get('/{id}/edit', [ForumController::class, 'edit'])->name('posts.edit');
-    Route::put('/{id}', [ForumController::class, 'update'])->name('posts.update');
-});
-
+    Route::prefix('posts')->group(function () {
+        Route::post('/', [PostsController::class, 'store'])->name('posts.store');
+        Route::get('/{postId}', [PostsController::class, 'show'])->name('posts.show');
+        Route::get('/{postId}/edit', [PostsController::class, 'edit'])->name('posts.edit');
+        Route::put('/{postId}', [PostsController::class, 'update'])->name('posts.update');
+    });
     // Tags
     Route::prefix('tags')->group(function () {
         Route::get('/', [TagController::class, 'index'])->name('tags.index');  // Rota de exibição de tags
         Route::post('/', [TagController::class, 'store'])->name('tags.store');  // Rota de criação de tags
         Route::delete('/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');  // Rota de exclusão de tags
     });
-    Route::get('/show', [TagController::class, 'show'])->name('tags.show');  // Rota carrega as tags no Mult-Select
+    Route::get('/show', [TagController::class, 'show'])->name('tags.show');   // Rota carrega as tags no Mult-Select
 });

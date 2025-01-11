@@ -8,6 +8,14 @@ class Post extends Model
 {
     use HasFactory;
 
+    protected $table = 'posts';
+
+    protected $primaryKey = 'id';
+
+    public $timestamps = true;
+
+    protected $dates = ['created_at', 'updated_at'];
+
     protected $fillable = ['title', 'description', 'user_id'];
 
     // Relacionamento com o usuário (autor do post)

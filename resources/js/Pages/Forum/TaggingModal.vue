@@ -65,15 +65,11 @@ export default {
         console.error('Erro ao carregar tags:', error);
       }
     },
-
-
-
-
     selectTags() {
       const tags = this.selectedTagsInternal.map(tag => ({
         id: tag.id || `temp-id-${Math.random()}`, // Atribui um id temporário se for null
-        name: tag.name || '',  // Garantir que 'name' não seja nulo
-        code: tag.code || null, // Garantir que 'code' não seja nulo
+        name: tag.name || '',  
+        code: tag.code || null,
       }));
 
       this.$emit('select-tags', tags);  // Emite as tags para o componente pai

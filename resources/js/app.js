@@ -1,7 +1,10 @@
 import './bootstrap';
 import '../css/app.css';
+import '@fortawesome/fontawesome-free/css/all.css';
 import PrimeVue from 'primevue/config';
 import Aura from '@primevue/themes/aura';
+import ToastService from 'primevue/toastservice';
+import Tooltip from 'primevue/tooltip';
 import { createApp, h } from 'vue';
 import { createInertiaApp } from '@inertiajs/vue3';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
@@ -17,11 +20,13 @@ createInertiaApp({
         return createApp({ render: () => h(App, props) })
             .use(plugin)
             .use(ZiggyVue)
+            .use(ToastService)
             .use(PrimeVue, {
                 theme: {
                     preset: Aura
                 }
-            })
+            })  
+            .directive('tooltip', Tooltip)
             .mount(el);
     },
     progress: {

@@ -26,8 +26,6 @@ class ForumController extends Controller
     ]);
 }
 
-
-
     // Exibe os detalhes de um post
     public function show($id)
     {
@@ -35,28 +33,6 @@ class ForumController extends Controller
         return response()->json($post);
     }
 
-    // Criação de um novo post
-    public function store(Request $request)
-    {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'required|string',
-            'tags' => 'required|array|exists:tags,id',
-        ]);
-
-        $post = Post::create([
-            'title' => $request->title,
-            'description' => $request->description,
-            'user_id' => Auth::id(),
-        ]);
-
-        // Associar tags ao post
-        $post->tags()->sync($request->tags);
-
-        return redirect()->route('forum.index');
-    }
-
-    // Edita um post (somente se for o autor)
     public function edit($id)
     {
         $post = Post::findOrFail($id);

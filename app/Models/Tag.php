@@ -10,7 +10,7 @@ class Tag extends Model
     use HasFactory;
 
     // Adiciona 'code' ao array de atributos que podem ser atribuídos em massa
-    protected $fillable = ['code', 'name', 'color'];
+    protected $fillable = ['code', 'name', 'color', 'icon'];
 
     // Relacionamento com os posts
     public function posts()

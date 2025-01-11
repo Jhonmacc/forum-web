@@ -11,18 +11,18 @@ class TagController extends Controller
     public function index()
     {
         // Busca as tags com os campos necessários (incluindo o 'id')
-        $tags = Tag::all(['id', 'code', 'name', 'color']);  // Adicionei 'color' aqui
+        $tags = Tag::all(['id', 'code', 'name', 'color', 'icon']);  // Adicionei 'color' aqui
 
         // Retorna as tags como um JSON
         return Inertia::render('Tags/Index', [
             'tags' => $tags
         ]);
     }
-    public function show() {
-        $tags = Tag::all(['id', 'code', 'name', 'color']);
+        public function show() {
+            $tags = Tag::all(['id', 'code', 'name', 'color', 'icon']);
 
-        return response()->json($tags);
-    }
+            return response()->json($tags);
+        }
 
     // Salva uma nova tag no banco de dados
     public function store(Request $request)
@@ -31,6 +31,7 @@ class TagController extends Controller
             'code' => 'nullable|string|max:255|unique:tags',
             'name' => 'required|string|max:255|unique:tags',
             'color' => 'nullable|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
+            'icon' => 'nullable|string|max:255',
         ],
         [
             'name.required' => 'O nome da tag é obrigatório.',
@@ -49,9 +50,6 @@ class TagController extends Controller
 
         return redirect()->route('tags.index')->with('success', 'Tag criada com sucesso!');
     }
-
-
-
     // Exclui uma tag existente
     public function destroy(Tag $tag)
     {
