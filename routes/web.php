@@ -6,6 +6,7 @@ use Inertia\Inertia;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\PostsController;
 use App\Http\Controllers\TagController;
+use App\Http\Controllers\WordController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -28,10 +29,9 @@ Route::middleware([
     })->name('dashboard');
 
   // Fórum
-    Route::prefix('forum')->group(function () {
+        Route::prefix('forum')->group(function () {
         Route::get('/', [ForumController::class, 'index'])->name('forum.index');
     });
-    // Posts
     Route::prefix('posts')->group(function () {
         Route::post('/', [PostsController::class, 'store'])->name('posts.store');
         Route::get('/{postId}', [PostsController::class, 'show'])->name('posts.show');
@@ -44,5 +44,11 @@ Route::middleware([
         Route::post('/', [TagController::class, 'store'])->name('tags.store');  // Rota de criação de tags
         Route::delete('/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');  // Rota de exclusão de tags
     });
-    Route::get('/show', [TagController::class, 'show'])->name('tags.show');   // Rota carrega as tags no Mult-Select
+        Route::get('/show', [TagController::class, 'show'])->name('tags.show');   // Rota carrega as tags no
+
+    // Words Pages
+    Route::post('/words', [WordController::class, 'store'])->name('words.store');
+    Route::get('/api/words', [WordController::class, 'index'])->name('api.words.index');
+    Route::get('/words', fn () => Inertia::render('Document/ListWord'))->name('words.list');
+    Route::get('/words/{id}', [WordController::class, 'show'])->name('words.view');
 });
