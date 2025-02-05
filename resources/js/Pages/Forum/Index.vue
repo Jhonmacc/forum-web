@@ -52,7 +52,7 @@ import Header from '@/Components/Header.vue';
                                 {{ tag.name }}
                             </span>
                             <i class="fa-solid fa-comment pl-2"></i>
-                            <span class="text-sm text-gray-400 pl-2">{{ post.comments_count || 0 }} </span>
+                            <span class="text-sm text-gray-400 pl-2">{{ post.comments || 0 }} </span>
                         </div>
                     </div>
                 </div>
@@ -119,21 +119,8 @@ export default {
             event.stopPropagation(); // Previne o fechamento ao clicar no campo de pesquisa
             this.isSearchExpanded = !this.isSearchExpanded; // Alterna o estado de expansão do campo de pesquisa
         },
-        handleClickOutside(event) {
-            if (!this.$refs.searchField.contains(event.target)) {
-                this.isSearchExpanded = false; // Fecha a pesquisa se o clique for fora
-            }
-        },
     },
-    mounted() {
-        document.addEventListener('click', this.handleClickOutside); // Escuta os cliques fora
-    },
-    destroyed() {
-        document.removeEventListener('click', this.handleClickOutside); // Remove o ouvinte quando o componente for destruído
-    }
 };
 </script>
 
-<style scoped>
-
-</style>
+<style scoped></style>

@@ -73,11 +73,18 @@ class PostsController extends Controller
         return redirect('/forum')->with('message', 'Post criado com sucesso!');
     }
 
-
     public function show($postId)
     {
-        $post = Post::with('tags', 'user')->findOrFail($postId);
-        return response()->json($post);
+        $post = Post::with([
+            'tags',                        // Tags associadas ao post
+            'user',                        // Autor do post
+            'comments.user',               // Autor do comentário
+            'comments.likes',              // Curtidas nos comentários
+            'comments.replies.user',       // Autor das respostas
+            'comments.replies.children.user', // Respostas-filhas (hierarquia completa)
+        ])->findOrFail($postId);
+
+        return response()->json($post, 200);
     }
 
 
@@ -106,6 +113,13 @@ class PostsController extends Controller
         // Atualizar as tags do post
         $post->tags()->sync($validated['tags']); // Sincronizando as tags com o post
 
+        return response()->json($post, 200);
+    }
+
+    public function destroy($id)
+    {
+        $post = Post::findOrFail($id);
+        $post->delete();
         return response()->json($post, 200);
     }
 }

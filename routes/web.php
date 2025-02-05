@@ -1,5 +1,4 @@
 <?php
-
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -7,6 +6,10 @@ use App\Http\Controllers\ForumController;
 use App\Http\Controllers\PostsController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\WordController;
+use App\Http\Controllers\CommentController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\ReplyController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -28,6 +31,9 @@ Route::middleware([
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
+        // Search Users
+        Route::get('/users/search', [UserController::class, 'search']);
+
   // Fórum
         Route::prefix('forum')->group(function () {
         Route::get('/', [ForumController::class, 'index'])->name('forum.index');
@@ -37,6 +43,7 @@ Route::middleware([
         Route::get('/{postId}', [PostsController::class, 'show'])->name('posts.show');
         Route::get('/{postId}/edit', [PostsController::class, 'edit'])->name('posts.edit');
         Route::put('/{postId}', [PostsController::class, 'update'])->name('posts.update');
+        Route::delete('/{postId}', [PostsController::class, 'destroy'])->name('posts.destroy');
     });
     // Tags
     Route::prefix('tags')->group(function () {
@@ -44,7 +51,36 @@ Route::middleware([
         Route::post('/', [TagController::class, 'store'])->name('tags.store');  // Rota de criação de tags
         Route::delete('/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');  // Rota de exclusão de tags
     });
-        Route::get('/show', [TagController::class, 'show'])->name('tags.show');   // Rota carrega as tags no
+        Route::get('/show', [TagController::class, 'show'])->name('tags.show');   // Rota carrega as tags
+
+    // Rotas Commentários
+    Route::post('/posts/{post}/comments', [CommentController::class, 'store'])->middleware('auth');
+    Route::get('/posts/{post}/comments', [CommentController::class, 'index']);
+
+    // Notificações
+    // buscar notificações
+    Route::get('/notifications', function () {
+        $user = auth()->user();
+        return response()->json([
+            'notifications' => $user->notifications, // Todas as notificações
+            'unread_count' => $user->unreadNotifications->count(), // Contagem de notificações não lidas
+        ]);
+    })->middleware('auth');
+    // marcar notificações como lidas
+    Route::post('/notifications/mark-as-read', function () {
+        $user = auth()->user();
+        $user->unreadNotifications->markAsRead();
+        return response()->json(['message' => 'Notificações marcadas como lidas.']);
+    })->middleware('auth');
+
+    // Rotas de repostas de comentários e curtidas
+    Route::post('/comments/{comment}/like', [CommentController::class, 'likeComment']);
+    Route::post('/comments/{comment}/reply', [CommentController::class, 'replyToComment']);
+    Route::post('/comments/{comment}/like', [CommentController::class, 'toggleLike']);
+    Route::post('/replies/{reply}/reply', [CommentController::class, 'replyToReply']);
+    Route::get('/comments/{comment}', [CommentController::class, 'show']);
+    Route::get('/replies/{reply}', [ReplyController::class, 'show']);
+
 
     // Words Pages
     Route::post('/words', [WordController::class, 'store'])->name('words.store');

@@ -23,14 +23,17 @@ class Post extends Model
     {
         return $this->belongsTo(User::class);
     }
+    // Relacionamento com os comentários
+    public function comments()
+    {
+        return $this->hasMany(Comment::class);
+    }
 
     // Relacionamento com as tags
     public function tags()
     {
         return $this->belongsToMany(Tag::class);
     }
-
-
     // Escopo para pegar um excerto da descrição
     public function getExcerptAttribute()
     {
