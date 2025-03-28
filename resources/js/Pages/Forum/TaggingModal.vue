@@ -68,7 +68,7 @@ export default {
     selectTags() {
       const tags = this.selectedTagsInternal.map(tag => ({
         id: tag.id || `temp-id-${Math.random()}`, // Atribui um id temporário se for null
-        name: tag.name || '',  
+        name: tag.name || '',
         code: tag.code || null,
       }));
 

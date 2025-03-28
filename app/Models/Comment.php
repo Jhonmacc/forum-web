@@ -29,9 +29,36 @@ class Comment extends Model
         return $this->hasMany(Like::class);
     }
 
+    // Relacionamento com menções
+    public function mentions()
+    {
+        return $this->hasMany(Mention::class);
+    }
+
     // Respostas ao comentário
     public function replies()
+{
+    return $this->hasMany(Reply::class, 'comment_id')
+        ->whereNull('parent_id') // Garantir que apenas respostas de nível 1 sejam carregadas aqui
+        ->with('user', 'likes', 'children');
+}
+
+    // Método para excluir em cascata
+    protected static function boot()
     {
-        return $this->hasMany(Reply::class, 'comment_id')->with('user'); // Relacionamento com a tabela replies
+        parent::boot();
+
+        static::deleting(function ($comment) {
+            // Excluir todas as respostas associadas (e suas respostas aninhadas, curtidas, etc.)
+            $comment->replies()->each(function ($reply) {
+                $reply->delete();
+            });
+
+            // Excluir curtidas associadas ao comentário
+            $comment->likes()->delete();
+
+            // Excluir menções associadas ao comentário
+            $comment->mentions()->delete();
+        });
     }
 }

@@ -28,15 +28,24 @@ class Post extends Model
     {
         return $this->hasMany(Comment::class);
     }
-
     // Relacionamento com as tags
     public function tags()
     {
         return $this->belongsToMany(Tag::class);
     }
-    // Escopo para pegar um excerto da descrição
+
     public function getExcerptAttribute()
     {
         return substr($this->description, 0, 100) . '...';
+    }
+    // Relacionamento com curtidas
+    public function likes()
+    {
+        return $this->hasMany(Like::class);
+    }
+
+    public function getLikesCountAttribute()
+    {
+        return $this->likes()->count();
     }
 }

@@ -1,11 +1,14 @@
 <?php
 namespace App\Models;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 use Illuminate\Database\Eloquent\Model;
 
 class Like extends Model
 {
-    protected $fillable = ['user_id', 'comment_id'];
+    use HasFactory;
+
+    protected $fillable = ['user_id', 'post_id', 'comment_id', 'reply_id'];
 
     public function user()
     {
@@ -15,5 +18,15 @@ class Like extends Model
     public function comment()
     {
         return $this->belongsTo(Comment::class);
+    }
+
+    public function post()
+    {
+        return $this->belongsTo(Post::class);
+    }
+
+    public function reply()
+    {
+        return $this->belongsTo(Reply::class);
     }
 }

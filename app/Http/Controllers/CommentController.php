@@ -3,43 +3,43 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Comment;
-use Illuminate\Http\Request;
-use App\Notifications\MentionedInComment;
+use App\Models\Reply;
 use App\Models\User;
 use App\Models\Mention;
-use App\Models\Reply;
+use App\Notifications\MentionedInReply;
+use App\Notifications\MentionedInComment;
 use App\Notifications\CommentReplied;
 use App\Notifications\CommentLiked;
-
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CommentController extends Controller
 {
+    private function extractMentions($text)
+    {
+        preg_match_all('/@([\w\s]+)/', $text, $matches);
+        return array_unique($matches[1]);
+    }
+
     public function index(Post $post)
     {
-        $comments = $post->comments()->with('user', 'likes')->latest()->get();
-
-        return response()->json([
-            'post' => $post,
-        ]);
+        $comments = $post->comments()->with('user', 'likes', 'replies.user', 'replies.likes', 'replies.children')->latest()->get();
+        return response()->json($comments);
     }
+
     public function toggleLike(Request $request, Comment $comment)
     {
-        $user = auth()->user();
-
-        // Verifica se o usuário já curtiu o comentário
+        $user = Auth::user();
         $like = $comment->likes()->where('user_id', $user->id)->first();
 
         if ($like) {
-            // Se já curtiu, descurte (remove o like)
             $like->delete();
             $liked = false;
         } else {
-            // Caso contrário, adiciona a curtida
             $comment->likes()->create(['user_id' => $user->id]);
             $liked = true;
 
-            // Notifica o autor do comentário
-            if ($comment->user_id !== $user->id) { // Não notifica se o autor curtir o próprio comentário
+            if ($comment->user_id !== $user->id) {
                 $comment->user->notify(new CommentLiked($comment, $user->name));
             }
         }
@@ -50,85 +50,145 @@ class CommentController extends Controller
         ]);
     }
 
+    public function toggleLikeReply(Request $request, Reply $reply)
+    {
+        $user = Auth::user();
+        $existingLike = $reply->likes()->where('user_id', $user->id)->first();
+
+        if ($existingLike) {
+            $existingLike->delete();
+            $liked = false;
+        } else {
+            $reply->likes()->create(['user_id' => $user->id]);
+            $liked = true;
+
+            if ($reply->user_id !== $user->id) {
+                $reply->user->notify(new CommentLiked($reply, $user->name));
+            }
+        }
+
+        return response()->json([
+            'liked' => $liked,
+            'likes_count' => $reply->likes()->count(),
+        ]);
+    }
+
     public function show(Comment $comment)
-{
-    $comment->load(['user', 'likes', 'replies.user', 'replies.children.user']);
-    return response()->json($comment, 200);
-}
-public function replyToComment(Request $request, Comment $comment)
+    {
+        $comment->load(['user', 'likes', 'replies.user', 'replies.likes', 'replies.children.user', 'replies.children.likes']);
+        return response()->json($comment, 200);
+    }
+
+    public function replyToComment(Request $request, Comment $comment)
 {
     $validated = $request->validate([
         'body' => 'required|string',
+        'mentions' => 'nullable|array',
     ]);
 
     $reply = $comment->replies()->create([
-        'user_id' => auth()->id(), // ID do autor da resposta
+        'user_id' => Auth::id(),
         'body' => $validated['body'],
     ]);
 
-    // Carrega o autor da resposta
     $reply->load('user');
 
-    // Notifica o autor do comentário, se necessário
-    $comment->user->notify(new CommentReplied($reply, $comment));
+    if ($comment->user_id !== Auth::id()) {
+        $comment->user->notify(new CommentReplied($reply, $comment));
+    }
 
-    // Retorna a resposta completa para o front-end
+    if (!empty($validated['mentions'])) {
+        $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all();
+        $mentionedUsers = User::whereIn('name', $mentionedUsernames)->get();
+
+        foreach ($mentionedUsers as $user) {
+            if ($user->id !== Auth::id()) {
+                Mention::create([
+                    'reply_id' => $reply->id,
+                    'mentioned_user_id' => $user->id,
+                ]);
+                $user->notify(new MentionedInReply($reply, Auth::user()->name));
+            }
+        }
+    }
+
     return response()->json($reply, 201);
 }
 
+public function replyToReply(Request $request, Reply $reply)
+{
+    $validated = $request->validate([
+        'body' => 'required|string',
+        'mentions' => 'nullable|array',
+    ]);
 
-    public function replyToReply(Request $request, Reply $reply)
-    {
-        $validated = $request->validate([
-            'body' => 'required|string',
-        ]);
+    $newReply = $reply->children()->create([
+        'user_id' => Auth::id(),
+        'body' => $validated['body'],
+        'comment_id' => $reply->comment_id,
+    ]);
 
-        $newReply = $reply->children()->create([
-            'user_id' => auth()->id(),
-            'body' => $validated['body'],
-            'comment_id' => $reply->comment_id, // Vincula à mesma discussão/comentário
-        ]);
+    $newReply->load('user', 'likes', 'children');
 
-        // Carrega o autor da nova resposta
-        $newReply->load('user');
+    // Log para depuração
+    \Log::info('Nova resposta aninhada criada:', [
+        'reply_id' => $newReply->id,
+        'comment_id' => $newReply->comment_id,
+        'parent_id' => $newReply->parent_id,
+        'body' => $newReply->body,
+    ]);
 
-        // Notifica o autor da resposta original
-        if ($reply->user_id !== auth()->id()) {
-            $reply->user->notify(new CommentReplied($newReply, $reply->comment));
-        }
-
-        return response()->json($newReply, 201);
+    if ($reply->user_id !== Auth::id()) {
+        $reply->user->notify(new CommentReplied($newReply, $reply->comment));
     }
+
+    if (!empty($validated['mentions'])) {
+        $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all();
+        $mentionedUsers = User::whereIn('name', $mentionedUsernames)->get();
+
+        foreach ($mentionedUsers as $user) {
+            if ($user->id !== Auth::id()) {
+                Mention::create([
+                    'reply_id' => $newReply->id,
+                    'mentioned_user_id' => $user->id,
+                ]);
+                $user->notify(new MentionedInReply($newReply, Auth::user()->name));
+            }
+        }
+    }
+
+    return response()->json($newReply, 201);
+}
 
     public function store(Request $request, Post $post)
     {
         $validated = $request->validate([
-            'content' => 'required|string', // Conteúdo do comentário
+            'content' => 'required|string',
             'post_id' => 'required|exists:posts,id',
-            'mentions' => 'array', // Lista de menções
+            'mentions' => 'nullable|array',
         ]);
 
         try {
             $comment = Comment::create([
                 'content' => $validated['content'],
                 'post_id' => $post->id,
-                'user_id' => auth()->id(),
+                'user_id' => Auth::id(),
             ]);
 
             $comment->load('user');
 
-            // Processar menções
-            $mentionedUsernames = collect($validated['mentions'] ?? [])->flatten()->toArray();
-            if (!empty($mentionedUsernames)) {
+            if (!empty($validated['mentions'])) {
+                $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all();
                 $mentionedUsers = User::whereIn('name', $mentionedUsernames)->get();
+
                 foreach ($mentionedUsers as $user) {
                     Mention::create([
                         'comment_id' => $comment->id,
                         'mentioned_user_id' => $user->id,
                     ]);
-
-                    // Notifica o usuário mencionado
-                    $user->notify(new MentionedInComment($post, $comment, auth()->user()->name));
+                    if ($user->id !== Auth::id()) {
+                        $user->notify(new MentionedInComment($post, $comment, Auth::user()->name));
+                    }
                 }
             }
 
@@ -139,6 +199,160 @@ public function replyToComment(Request $request, Comment $comment)
         } catch (\Exception $e) {
             return response()->json([
                 'message' => 'Erro ao adicionar comentário',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function update(Request $request, Comment $comment)
+    {
+        // Verificar se o usuário autenticado é o autor do comentário
+        if ($comment->user_id !== Auth::id()) {
+            return response()->json([
+                'message' => 'Você não tem permissão para editar este comentário.',
+            ], 403);
+        }
+
+        $validated = $request->validate([
+            'content' => 'required|string',
+            'mentions' => 'nullable|array',
+        ]);
+
+        try {
+            $comment->update([
+                'content' => $validated['content'],
+            ]);
+
+            // Remover menções antigas
+            $comment->mentions()->delete();
+
+            // Adicionar novas menções
+            if (!empty($validated['mentions'])) {
+                $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all();
+                $mentionedUsers = User::whereIn('name', $mentionedUsernames)->get();
+
+                foreach ($mentionedUsers as $user) {
+                    Mention::create([
+                        'comment_id' => $comment->id,
+                        'mentioned_user_id' => $user->id,
+                    ]);
+                    if ($user->id !== Auth::id()) {
+                        $user->notify(new MentionedInComment($comment->post, $comment, Auth::user()->name));
+                    }
+                }
+            }
+
+            $comment->load('user');
+
+            return response()->json([
+                'message' => 'Comentário atualizado com sucesso',
+                'data' => $comment,
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erro ao atualizar comentário',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function updateReply(Request $request, Reply $reply)
+{
+    // Verificar se o usuário autenticado é o autor da resposta
+    if ($reply->user_id !== Auth::id()) {
+        return response()->json([
+            'message' => 'Você não tem permissão para editar esta resposta.',
+        ], 403);
+    }
+
+    $validated = $request->validate([
+        'body' => 'required|string',
+        'mentions' => 'nullable|array',
+    ]);
+
+    try {
+        $reply->update([
+            'body' => $validated['body'],
+        ]);
+
+        // Remover menções antigas
+        \Log::info('Removendo menções antigas da resposta', ['reply_id' => $reply->id]);
+        $reply->mentions()->delete();
+
+        // Adicionar novas menções
+        if (!empty($validated['mentions'])) {
+            $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all();
+            $mentionedUsers = User::whereIn('name', $mentionedUsernames)->get();
+
+            \Log::info('Adicionando novas menções', ['mentioned_users' => $mentionedUsernames]);
+
+            foreach ($mentionedUsers as $user) {
+                Mention::create([
+                    'reply_id' => $reply->id,
+                    'mentioned_user_id' => $user->id,
+                ]);
+                if ($user->id !== Auth::id()) {
+                    $user->notify(new MentionedInReply($reply, Auth::user()->name));
+                }
+            }
+        }
+
+        $reply->load('user');
+
+        return response()->json([
+            'message' => 'Resposta atualizada com sucesso',
+            'data' => $reply,
+        ], 200);
+    } catch (\Exception $e) {
+        \Log::error('Erro ao atualizar resposta', ['error' => $e->getMessage()]);
+        return response()->json([
+            'message' => 'Erro ao atualizar resposta',
+            'error' => $e->getMessage(),
+        ], 500);
+    }
+}
+
+    public function destroy(Comment $comment)
+    {
+        // Verificar se o usuário autenticado é o autor do comentário
+        if ($comment->user_id !== Auth::id()) {
+            return response()->json([
+                'message' => 'Você não tem permissão para excluir este comentário.',
+            ], 403);
+        }
+
+        try {
+            $comment->delete();
+
+            return response()->json([
+                'message' => 'Comentário excluído com sucesso',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erro ao excluir comentário',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    public function destroyReply(Reply $reply)
+    {
+        // Verificar se o usuário autenticado é o autor da resposta
+        if ($reply->user_id !== Auth::id()) {
+            return response()->json([
+                'message' => 'Você não tem permissão para excluir esta resposta.',
+            ], 403);
+        }
+
+        try {
+            $reply->delete();
+
+            return response()->json([
+                'message' => 'Resposta excluída com sucesso',
+            ], 200);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Erro ao excluir resposta',
                 'error' => $e->getMessage(),
             ], 500);
         }

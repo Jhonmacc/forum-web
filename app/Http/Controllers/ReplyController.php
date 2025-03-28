@@ -6,9 +6,9 @@ use Illuminate\Http\Request;
 
 class ReplyController extends Controller
 {
-public function show(Reply $reply)
+    public function show(Reply $reply)
     {
-    $reply->load(['user', 'children.user']);
-    return response()->json($reply, 200);
+        $reply->load(['user', 'children.user', 'children.likes']);
+        return response()->json($reply, 200);
     }
 }

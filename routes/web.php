@@ -10,6 +10,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\UserController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReplyController;
+use App\Http\Controllers\UserProfileController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -38,8 +39,11 @@ Route::middleware([
         Route::prefix('forum')->group(function () {
         Route::get('/', [ForumController::class, 'index'])->name('forum.index');
     });
+    Route::get('/users/{id}', [UserProfileController::class, 'show'])->name('users.show');
+    Route::get('/users/by-username/{username}', [UserProfileController::class, 'getUserByUsername']);
     Route::prefix('posts')->group(function () {
         Route::post('/', [PostsController::class, 'store'])->name('posts.store');
+        Route::post('/{id}/like', [PostsController::class, 'like'])->middleware('auth');
         Route::get('/{postId}', [PostsController::class, 'show'])->name('posts.show');
         Route::get('/{postId}/edit', [PostsController::class, 'edit'])->name('posts.edit');
         Route::put('/{postId}', [PostsController::class, 'update'])->name('posts.update');
@@ -74,14 +78,20 @@ Route::middleware([
     })->middleware('auth');
 
     // Rotas de repostas de comentários e curtidas
+    Route::middleware('auth')->group(function () {
     Route::post('/comments/{comment}/like', [CommentController::class, 'likeComment']);
     Route::post('/comments/{comment}/reply', [CommentController::class, 'replyToComment']);
     Route::post('/comments/{comment}/like', [CommentController::class, 'toggleLike']);
     Route::post('/replies/{reply}/reply', [CommentController::class, 'replyToReply']);
     Route::get('/comments/{comment}', [CommentController::class, 'show']);
     Route::get('/replies/{reply}', [ReplyController::class, 'show']);
-
-
+    Route::put('/comments/{comment}', [CommentController::class, 'update']); // Nova rota para atualizar comentários
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy']); // Nova rota para excluir comentários
+    });
+    // Rotas para respostas
+    Route::post('/replies/{reply}/like', [CommentController::class, 'toggleLikeReply']);
+    Route::put('/replies/{reply}', [CommentController::class, 'updateReply']); // Nova rota para atualizar respostas
+    Route::delete('/replies/{reply}', [CommentController::class, 'destroyReply']); // Nova rota para excluir respostas
     // Words Pages
     Route::post('/words', [WordController::class, 'store'])->name('words.store');
     Route::get('/api/words', [WordController::class, 'index'])->name('api.words.index');

@@ -103,7 +103,7 @@ const showPopup = ref(false);
 const unreadCount = ref(0);
 const isDropdownOpen = ref(false);
 const isSearchExpanded = ref(false);
-const activeMenu = ref('dashboard');
+const activeMenu = ref('forum');
 
 // Função para alternar o estado do dropdown
 const toggleDropdown = () => {

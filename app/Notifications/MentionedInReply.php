@@ -6,17 +6,17 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Notification;
 
-class CommentReplied extends Notification implements ShouldQueue
+class MentionedInReply extends Notification implements ShouldQueue
 {
     use Queueable;
 
     public $reply;
-    public $comment;
+    public $mentionedBy;
 
-    public function __construct($reply, $comment)
+    public function __construct($reply, $mentionedBy)
     {
         $this->reply = $reply;
-        $this->comment = $comment;
+        $this->mentionedBy = $mentionedBy;
     }
 
     public function via($notifiable)
@@ -27,10 +27,10 @@ class CommentReplied extends Notification implements ShouldQueue
     public function toDatabase($notifiable)
     {
         return [
-            'message' => "@{$this->reply->user->name} respondeu seu comentário no post '{$this->comment->post->title}'.",
+            'message' => "@{$this->mentionedBy} mencionou você em uma resposta no post '{$this->reply->comment->post->title}'.",
             'reply_id' => $this->reply->id,
-            'comment_id' => $this->comment->id,
-            'post_id' => $this->comment->post_id,
+            'comment_id' => $this->reply->comment_id,
+            'post_id' => $this->reply->comment->post_id,
         ];
     }
 }

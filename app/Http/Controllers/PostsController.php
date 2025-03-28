@@ -6,7 +6,7 @@ use App\Models\Post;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
-
+use App\Notifications\PostLikedNotification;
 class PostsController extends Controller
 {
       /**
@@ -74,19 +74,63 @@ class PostsController extends Controller
     }
 
     public function show($postId)
-    {
-        $post = Post::with([
-            'tags',                        // Tags associadas ao post
-            'user',                        // Autor do post
-            'comments.user',               // Autor do comentário
-            'comments.likes',              // Curtidas nos comentários
-            'comments.replies.user',       // Autor das respostas
-            'comments.replies.children.user', // Respostas-filhas (hierarquia completa)
-        ])->findOrFail($postId);
+{
+    $post = Post::with([
+        'tags',
+        'user',
+        'likes',
+        'comments' => function ($query) {
+            $query->with([
+                'user',
+                'likes',
+                'replies' => function ($query) {
+                    $query->with([
+                        'user',
+                        'likes',
+                        'children' => function ($query) {
+                            $query->with([
+                                'user',
+                                'likes',
+                            ]);
+                        },
+                    ]);
+                },
+            ]);
+        },
+    ])
+    ->withCount(['comments', 'likes'])
+    ->findOrFail($postId);
 
-        return response()->json($post, 200);
+    // Log para depuração
+    \Log::info('Dados do post retornados:', $post->toArray());
+
+    return response()->json($post, 200);
+}
+
+    public function like($id)
+{
+    $post = Post::findOrFail($id);
+    $user = Auth::user();
+
+    $existingLike = $post->likes()->where('user_id', $user->id)->first();
+
+    if ($existingLike) {
+        $existingLike->delete();
+        $liked = false;
+    } else {
+        $post->likes()->create(['user_id' => $user->id]);
+        $liked = true;
+
+        if ($post->user_id !== $user->id) {
+            $post->user->notify(new PostLikedNotification($post, $user));
+        }
     }
 
+    return response()->json([
+        'liked' => $liked,
+        'likes_count' => $post->likes()->count(),
+    ], 200);
+}
 
     public function edit($postId)
     {

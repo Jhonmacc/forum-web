@@ -7,10 +7,10 @@ use App\Models\User;
 
 class UserController extends Controller
 {
-    public function search(Request $request)
+        public function search(Request $request)
     {
-        $query = $request->input('query');
-        $users = User::where('name', 'LIKE', "%{$query}%")->select('id', 'name', 'email')->get();
+        $query = $request->query('query');
+        $users = User::where('username', 'like', "%{$query}%")->get(['id', 'username']);
         return response()->json($users);
     }
 }

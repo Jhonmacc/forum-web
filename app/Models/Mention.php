@@ -8,10 +8,20 @@ class Mention extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['comment_id', 'mentioned_user_id'];
+    protected $fillable = ['comment_id', 'reply_id', 'mentioned_user_id'];
 
     public function mentionedUser()
     {
         return $this->belongsTo(User::class, 'mentioned_user_id');
+    }
+
+    public function comment()
+    {
+        return $this->belongsTo(Comment::class, 'comment_id');
+    }
+
+    public function reply()
+    {
+        return $this->belongsTo(Reply::class, 'reply_id');
     }
 }
