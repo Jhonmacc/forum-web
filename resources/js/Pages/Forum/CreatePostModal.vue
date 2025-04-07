@@ -1,148 +1,157 @@
 <template>
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-      <div class="bg-white rounded shadow p-6 w-full max-w-lg">
-        <h2 class="text-xl font-semibold mb-4">Criar Novo Post</h2>
-        <div class="mb-4">
-          <label for="title" class="block text-sm font-medium text-gray-700">Título</label>
-          <input
-            v-model="newPost.title"
-            id="title"
-            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            required
-          />
-        </div>
-        <div class="mb-4">
-          <label for="description" class="block text-sm font-medium text-gray-700">Descrição</label>
-          <textarea
-            v-model="newPost.description"
-            id="description"
-            rows="4"
-            class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-            required
-          ></textarea>
-        </div>
-        <div class="mb-4">
-          <button
-            @click="openTaggingModal"
-            class="py-2 px-4 bg-gray-500 text-white rounded hover:bg-gray-600">
-            Escolha as Tags
-          </button>
-        </div>
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4">
+        <div class="bg-white rounded shadow-lg w-full max-w-4xl text-black max-h-[90vh] flex flex-col modal-container">
+            <div class="modal-content p-6 overflow-y-auto">
+                <h2 class="text-xl text-gray-500 font-semibold mb-4">Nova Discussão</h2>
+                <div class="mb-4">
+                    <label for="title" class="block text-sm font-medium text-gray-400">Título</label>
+                    <input v-model="newPost.title" id="title"
+                        class="mt-1 block w-full border-gray-300 rounded-3xl shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                        :class="{ 'border-red-500': errors.title }" required />
+                    <p v-if="errors.title" class="text-red-500 text-sm mt-1">{{ errors.title }}</p>
+                </div>
+                <div class="mb-4">
+                    <label for="description" class="block text-sm font-medium text-gray-400">Descrição</label>
+                    <TextQuill class="relative" ref="textQuill" v-model:content="newPost.description" />
+                    <p v-if="errors.description" class="text-red-500 text-sm mt-1">{{ errors.description }}</p>
+                </div>
+                <div class="mb-4">
+                    <button @click="openTaggingModal"
+                        class="py-2 px-4 bg-gray-500 text-white rounded hover:bg-gray-600">
+                        Escolha as Tags
+                    </button>
+                </div>
 
-        <div v-if="newPost.tags.length > 0" class="mb-4">
-          <h3 class="font-medium text-gray-700">Tags Selecionadas:</h3>
-          <ul class="list-disc list-inside">
-            <li v-for="(tag, index) in newPost.tags" :key="index">
-              {{ tag?.name }}
-            </li>
-          </ul>
-        </div>
+                <div v-if="newPost.tags.length > 0" class="mb-4">
+                    <h1 class="font-medium text-gray-700">Tags Selecionadas:</h1>
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <span v-for="(tag, index) in newPost.tags" :key="index"
+                            class="flex items-center space-x-2 px-3 py-1 rounded-full text-white font-medium"
+                            :style="{ backgroundColor: tag.color || '#ccc' }">
+                            <i :class="tag.icon" class="text-sm"></i>
+                            <span>{{ tag.name }}</span>
+                        </span>
+                    </div>
+                </div>
 
-        <div class="flex justify-end space-x-4">
-          <button
-            @click="$emit('close')"
-            class="py-2 px-4 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
-            Cancelar
-          </button>
-          <button
-            @click="submitPost"
-            class="py-2 px-4 bg-indigo-500 text-white rounded hover:bg-indigo-600">
-            Criar Post
-          </button>
-        </div>
+                <p v-if="errors.tags" class="text-red-500 text-sm mt-1">{{ errors.tags }}</p>
+            </div>
 
-        <tagging-modal
-          v-if="showTaggingModal"
-          @close="closeTaggingModal"
-          @select-tags="setTags"
-          :selected-tags="newPost.tags"
-        />
-      </div>
+            <div class="p-6 border-t border-gray-200 flex justify-end space-x-4">
+                <button @click="$emit('close')" class="py-2 px-4 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
+                    Cancelar
+                </button>
+                <button @click="submitPost" class="py-2 px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600">
+                    Criar Post
+                </button>
+            </div>
+
+            <tagging-modal v-if="showTaggingModal" @close="closeTaggingModal" @select-tags="setTags"
+                :selected-tags="newPost.tags" />
+        </div>
     </div>
-  </template>
+</template>
 
-  <script>
-  import TaggingModal from './TaggingModal.vue';
-  import Swal from 'sweetalert2'; // Importando o SweetAlert2
-  import axios from 'axios';
+<script>
+import TaggingModal from './TaggingModal.vue';
+import Swal from 'sweetalert2';
+import axios from 'axios';
+import TextQuill from '@/Components/TextQuill.vue';
 
-  export default {
-    components: { TaggingModal },
+export default {
+    components: { TaggingModal, TextQuill },
     data() {
-      return {
-        newPost: {
-          title: '',
-          description: '',
-          tags: [],
-        },
-        showTaggingModal: false,
-      };
+        return {
+            newPost: {
+                title: '',
+                description: '',
+                tags: [],
+            },
+            showTaggingModal: false,
+            errors: {},
+        };
     },
     methods: {
-      openTaggingModal() {
-        this.showTaggingModal = true;
-      },
-      closeTaggingModal() {
-        this.showTaggingModal = false;
-      },
-      setTags(tags) {
-        this.newPost.tags = tags.map(tag => ({
-          id: parseInt(tag.id, 10),
-          name: tag.name || '',
-          code: tag.code || null,
-        }));
+        openTaggingModal() {
+            this.showTaggingModal = true;
+        },
+        closeTaggingModal() {
+            this.showTaggingModal = false;
+        },
+        setTags(tags) {
+            this.newPost.tags = tags.map(tag => ({
+                id: parseInt(tag.id, 10),
+                name: tag.name || '',
+                code: tag.code || null,
+                color: tag.color || '#ccc',
+                icon: tag.icon || 'fa-solid fa-tag', // Inclui o ícone
+                description: tag.description || '', // Inclui a descrição
+            }));
+        },
+        validateForm() {
+            this.errors = {};
+            if (!this.newPost.title.trim()) {
+                this.errors.title = 'Você precisa dar um título ao seu post.';
+            }
+            const descriptionContent = this.newPost.description.replace(/<[^>]+>/g, '').trim();
+            if (!descriptionContent) {
+                this.errors.description = 'Você precisa dar uma descrição ao seu post.';
+            }
+            if (!this.newPost.tags.length) {
+                this.errors.tags = 'Defina pelo menos uma tag ao seu post.';
+            }
+            return Object.keys(this.errors).length === 0;
+        },
+        async submitPost() {
+            if (!this.validateForm()) {
+                return;
+            }
 
-        console.log('Tags selecionadas:', this.newPost.tags);
-      },
+            const postPayload = {
+                title: this.newPost.title,
+                description: this.newPost.description,
+                tags: this.newPost.tags.map(tag => tag.id),
+            };
 
-      async submitPost() {
-        if (this.newPost.tags && this.newPost.tags.length) {
-          const tagIds = this.newPost.tags.map(tag => tag.id);
+            try {
+                await this.$inertia.post(route('posts.store'), postPayload);
 
-          if (tagIds.length === 0) {
-            console.error('Nenhuma tag válida selecionada');
-            return;
-          }
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Post criado com sucesso!',
+                    showConfirmButton: false,
+                    timer: 1500,
+                });
 
-          const postPayload = {
-            title: this.newPost.title,
-            description: this.newPost.description,
-            tags: tagIds,
-          };
-
-          try {
-            // Envia a solicitação ao servidor com Inertia
-            await this.$inertia.post(route('posts.store'), postPayload);
-
-            // Exibe a mensagem de sucesso com SweetAlert2
-            Swal.fire({
-              icon: 'success',
-              title: 'Post criado com sucesso!',
-              showConfirmButton: false,
-              timer: 1500,
-            });
-
-            // Fechar o modal
-            this.$emit('close');  // Emitir evento para fechar o modal
-            this.clearForm();  // Limpar os campos do formulário após o envio
-          } catch (error) {
-            // Caso haja um erro, você pode exibir uma mensagem de erro
-            Swal.fire({
-              icon: 'error',
-              title: 'Erro ao criar o post!',
-              text: error.response?.data.message || 'Ocorreu um erro inesperado.',
-            });
-          }
-        } else {
-          console.error('Nenhuma tag selecionada');
-        }
-      },
-
-      clearForm() {
-        this.newPost.title = '';
-        this.newPost.description = '';
-        this.newPost.tags = [];
-      },
+                this.$emit('close');
+                this.clearForm();
+            } catch (error) {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Erro ao criar o post!',
+                    text: error.response?.data.message || 'Ocorreu um erro inesperado.',
+                });
+            }
+        },
+        clearForm() {
+            this.newPost.title = '';
+            this.newPost.description = '';
+            this.$refs.textQuill.clearContent();
+            this.newPost.tags = [];
+        },
     },
-  };
-  </script>
+};
+</script>
+
+<style scoped>
+.modal-content {
+    max-height: calc(90vh - 120px);
+    /* Ajusta a altura considerando o espaço dos botões e padding */
+}
+
+/* Estilo para o contorno amarelo sombreado do modal */
+.modal-container {
+    border: 4px solid #f59e0b; /* Contorno amarelo */
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.6); /* Sombra amarela suave */
+}
+</style>

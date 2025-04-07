@@ -5,88 +5,88 @@ namespace App\Http\Controllers;
 use App\Models\Post;
 use App\Models\Tag;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Carbon\Carbon;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Log;
+
 class ForumController extends Controller
 {
-    // Exibe os posts com paginação
-
-    public function relativeTime($date) {
-        return Carbon::parse($date)->diffForHumans();
-    }
     public function index(Request $request)
-{
-    $posts = Post::with('tags', 'user') // Carrega os posts com tags e usuário
-                ->orderBy('created_at', 'desc') // Ordena os posts pela data de criação (mais recentes primeiro)
-                ->paginate(10); // Paginação com 10 posts por página
-
-    return Inertia::render('Forum/Index', [
-        'posts' => $posts,
-    ]);
-}
-
-
-
-    // Exibe os detalhes de um post
-    public function show($id)
     {
-        $post = Post::with('tags', 'user')->findOrFail($id);
-        return response()->json($post);
-    }
-
-    // Criação de um novo post
-    public function store(Request $request)
-    {
-        $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'required|string',
-            'tags' => 'required|array|exists:tags,id',
+        $validated = $request->validate([
+            'tag' => 'nullable|string',
+            'sort' => 'nullable|string|in:últimas,mais novo,mais velho',
+            'per_page' => 'nullable|integer|min:1|max:100',
+            'page' => 'nullable|integer|min:1',
         ]);
 
-        $post = Post::create([
-            'title' => $request->title,
-            'description' => $request->description,
-            'user_id' => Auth::id(),
+        $tag = $validated['tag'] ?? 'Todos';
+        $sort = $validated['sort'] ?? 'últimas';
+        $perPage = $validated['per_page'] ?? 5;
+        $page = $validated['page'] ?? 1;
+
+        // Log para depuração
+        Log::info('ForumController::index', [
+            'tag' => $tag,
+            'sort' => $sort,
+            'per_page' => $perPage,
+            'page' => $page,
         ]);
 
-        // Associar tags ao post
-        $post->tags()->sync($request->tags);
+        // Inicia a query para buscar os posts
+        $query = Post::with(['tags', 'user'])
+                     ->withCount(['comments', 'likes']);
 
-        return redirect()->route('forum.index');
-    }
-
-    // Edita um post (somente se for o autor)
-    public function edit($id)
-    {
-        $post = Post::findOrFail($id);
-
-        // Verifica se o usuário é o autor do post
-        if ($post->user_id !== Auth::id()) {
-            return redirect()->route('forum.index')->with('error', 'Você não tem permissão para editar este post');
+        // Filtra por tag, se não for "Todos"
+        if ($tag !== 'Todos') {
+            $query->whereHas('tags', function ($q) use ($tag) {
+                $q->where('name', $tag);
+            });
         }
 
-        return view('forum.edit', compact('post'));
-    }
-
-    // Atualiza um post
-    public function update(Request $request, $id)
-    {
-        $post = Post::findOrFail($id);
-
-        // Verifica se o usuário é o autor do post
-        if ($post->user_id !== Auth::id()) {
-            return redirect()->route('forum.index')->with('error', 'Você não tem permissão para editar este post');
+        // Ordena com base no parâmetro sort
+        switch ($sort) {
+            case 'mais novo':
+                $query->orderBy('created_at', 'desc');
+                break;
+            case 'mais velho':
+                $query->orderBy('created_at', 'asc');
+                break;
+            case 'últimas':
+            default:
+                // Ordena por última atividade (ex.: comentários ou criação)
+                $query->orderBy('updated_at', 'desc');
+                break;
         }
 
-        $post->update([
-            'title' => $request->title,
-            'description' => $request->description,
+        // Executa a query com paginação
+        $posts = $query->paginate($perPage, ['*'], 'page', $page);
+
+        // Log para depuração dos posts retornados
+        Log::info('Posts retornados', [
+            'current_page' => $posts->currentPage(),
+            'per_page' => $posts->perPage(),
+            'total' => $posts->total(),
+            'data' => $posts->items(),
         ]);
 
-        // Atualiza as tags associadas
-        $post->tags()->sync($request->tags);
+        // Mantém os parâmetros na URL para a paginação
+        $posts->appends([
+            'tag' => $tag,
+            'sort' => $sort,
+            'per_page' => $perPage,
+        ]);
 
-        return redirect()->route('forum.index');
+        // Busca todas as tags disponíveis
+        $tags = Tag::all(['id', 'code', 'name', 'color', 'icon', 'description']);
+
+        return Inertia::render('Forum/Index', [
+            'posts' => $posts,
+            'filters' => [
+                'tag' => $tag,
+                'sort' => $sort,
+                'per_page' => $perPage,
+            ],
+            'tags' => $tags,
+        ]);
     }
 }
