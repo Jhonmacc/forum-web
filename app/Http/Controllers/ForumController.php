@@ -12,7 +12,6 @@ class ForumController extends Controller
 {
     public function index(Request $request)
     {
-        // Validação dos parâmetros da query string
         $validated = $request->validate([
             'tag' => 'nullable|string',
             'sort' => 'nullable|string|in:últimas,mais novo,mais velho',
@@ -20,7 +19,6 @@ class ForumController extends Controller
             'page' => 'nullable|integer|min:1',
         ]);
 
-        // Parâmetros com valores padrão
         $tag = $validated['tag'] ?? 'Todos';
         $sort = $validated['sort'] ?? 'últimas';
         $perPage = $validated['per_page'] ?? 5;

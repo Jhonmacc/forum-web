@@ -156,7 +156,7 @@
                 <div v-if="hasMorePosts" class="flex justify-center mt-6">
                     <button @click="loadMorePosts"
                             class="flex items-center space-x-2 px-6 py-2 bg-yellow-400 text-white rounded-3xl hover:bg-yellow-500 transition-colors">
-                        <span>Carregar Mais</span>
+                        <span class="text-white font-bold">Carregar Mais</span>
                         <i v-if="isLoading" class="fa-solid fa-spinner fa-spin"></i>
                     </button>
                 </div>

@@ -72,11 +72,9 @@ public function uploadImage(Request $request)
         \Log::info('Tamanho da imagem: ' . $image->getSize() . ' bytes');
         \Log::info('MIME type da imagem: ' . $image->getMimeType());
 
-        // Salvar a imagem usando o mesmo método do WordController
         $path = $image->store('images', 'public');
         \Log::info('Caminho retornado pelo store: ' . $path);
 
-        // Verificar se o arquivo realmente foi salvo
         $absolutePath = storage_path('app/public/' . $path);
         \Log::info('Caminho absoluto do arquivo: ' . $absolutePath);
 
@@ -248,15 +246,15 @@ public function uploadImage(Request $request)
     $images = $doc->getElementsByTagName('img');
 
     if ($images->length > 0) {
-        $image = $images->item(0); // Pegamos a primeira imagem
+        $image = $images->item(0); // Pega a primeira imagem
         $src = $image->getAttribute('src');
 
-        // Verificamos se o src é uma URL válida
+        // Verifica se o src é uma URL válida
         if (filter_var($src, FILTER_VALIDATE_URL)) {
-            $imagePath = $src; // Atualizamos a URL da imagem
+            $imagePath = $src;
         }
     } else {
-        $imagePath = null; // Se não houver imagens, limpamos a coluna images
+        $imagePath = null;
     }
 
     // Atualiza o post
