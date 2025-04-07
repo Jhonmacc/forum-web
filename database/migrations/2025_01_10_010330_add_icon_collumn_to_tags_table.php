@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::table('tags', function (Blueprint $table) {
             $table->string('icon')->after('color')->nullable();
+            $table->text('description')->after('icon')->nullable();
         });
     }
     /**

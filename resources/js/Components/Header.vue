@@ -11,10 +11,11 @@
                     class="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-yellow-500 hover:-translate-y-1 transition-transform"
                     :class="{ 'bg-yellow-400 text-white': activeMenu === 'forum' }"
                     @click="setActiveMenu('forum')">Fórum</a>
-                <a href="/meus-posts"
-                    class="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 hover:-translate-y-1 transition-transform"
-                    :class="{ 'bg-indigo-500 text-white': activeMenu === 'meus-posts' }"
-                    @click="setActiveMenu('meus-posts')">Meus Posts</a>
+                <!-- Botão Meus Posts -->
+                <button
+                    class="py-2 px-4 bg-gray-200 text-gray-700 rounded-lg hover:bg-yellow-500 hover:-translate-y-1 transition-transform"
+                    :class="{ 'bg-yellow-400 text-white': activeMenu === 'meus-posts' }" @click="goToMyProfile">Meus
+                    Posts</button>
             </nav>
         </header>
 
@@ -27,8 +28,21 @@
                         class="relative flex items-center space-x-2 p-1 rounded-lg transition-all duration-500 ease-in-out"
                         :class="{ 'w-60': !isSearchExpanded, 'w-96': isSearchExpanded }" @click="toggleSearch($event)">
                         <i class="fa-solid fa-magnifying-glass text-gray-500 absolute left-7"></i>
-                        <input type="text" placeholder="Pesquisar..."
-                            class="w-full p-1 pl-10 rounded-2xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+                        <input v-model="searchQuery" type="text" placeholder="Pesquisar..."
+                            class="w-full p-1 pl-10 rounded-2xl border border-gray-300 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                            @input="handleSearch" @focus="isSearchExpanded = true" @blur="onSearchBlur" />
+                        <!-- Spinner -->
+                        <div v-if="isLoading" class="absolute right-2">
+                            <i class="fas fa-spinner fa-spin text-gray-500"></i>
+                        </div>
+                        <!-- Lista Suspensa de Resultados -->
+                        <div v-if="searchResults.length > 0 && isSearchExpanded"
+                            class="absolute top-full left-0 w-full bg-white shadow-lg rounded-lg mt-1 max-h-60 overflow-y-auto z-10">
+                            <a v-for="(result, index) in searchResults" :key="index" :href="result.url"
+                                class="block p-2 hover:bg-gray-100 cursor-pointer">
+                                {{ result.title }}
+                            </a>
+                        </div>
                     </div>
                     <div class="relative" ref="notificationsAlert">
                         <!-- Ícone do sininho de notificações -->
@@ -41,7 +55,7 @@
                         </div>
                         <!-- Popup de notificações -->
                         <div v-if="showPopup"
-                            class="absolute bg-white shadow-lg rounded-2xl border p-4 w-96  max-h-96 overflow-y-auto left-0 transform -translate-x-full ">
+                            class="absolute bg-white shadow-lg rounded-2xl border p-4 w-96 max-h-96 overflow-y-auto left-0 transform -translate-x-full">
                             <div class="flex justify-between items-center mb-2">
                                 <h3 class="text-lg font-semibold">Notificações</h3>
                                 <i class="fa-solid fa-check cursor-pointer text-gray-500 hover:text-green-500"
@@ -92,49 +106,78 @@
 </template>
 
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
-import { router } from '@inertiajs/vue3';
+import { ref, onMounted, onBeforeUnmount, watch } from 'vue';
+import { router, usePage } from '@inertiajs/vue3';
+import axios from 'axios';
+
+const page = usePage();
 
 const logout = () => {
     router.post(route('logout'));
 };
+
 const notifications = ref([]);
 const showPopup = ref(false);
 const unreadCount = ref(0);
 const isDropdownOpen = ref(false);
 const isSearchExpanded = ref(false);
 const activeMenu = ref('forum');
+const searchQuery = ref('');
+const searchResults = ref([]);
+const isLoading = ref(false);
 
-// Função para alternar o estado do dropdown
+const updateActiveMenu = () => {
+    const currentPath = window.location.pathname;
+    if (currentPath === '/dashboard') {
+        activeMenu.value = 'dashboard';
+    } else if (currentPath === '/forum') {
+        activeMenu.value = 'forum';
+    } else if (currentPath.startsWith('/users/')) {
+        activeMenu.value = 'meus-posts';
+    } else {
+        activeMenu.value = '';
+    }
+};
+
+const goToMyProfile = () => {
+    const userId = page.props.auth.user.id;
+    setActiveMenu('meus-posts');
+    router.visit(`/users/${userId}`);
+};
+
 const toggleDropdown = () => {
     isDropdownOpen.value = !isDropdownOpen.value;
 };
 
-// Função para alternar o estado do campo de pesquisa
 const toggleSearch = (event) => {
     event.stopPropagation();
-    isSearchExpanded.value = !isSearchExpanded.value;
+    isSearchExpanded.value = true;
+};
+
+const onSearchBlur = () => {
+    // Adiciona um pequeno delay para permitir o clique nos resultados
+    setTimeout(() => {
+        isSearchExpanded.value = false;
+    }, 200);
 };
 
 const toggleNotificationPopup = () => {
     showPopup.value = !showPopup.value;
-}
+};
 
-// Função para fechar o dropdown
 const closeDropdown = () => {
     isDropdownOpen.value = false;
 };
 
-// Função para fechar a pesquisa
 const closeSearch = () => {
     isSearchExpanded.value = false;
+    searchResults.value = [];
 };
 
 const closeNotifications = () => {
     showPopup.value = false;
 };
 
-// Verifica se o clique foi fora do dropdown ou do campo de pesquisa
 const handleClickOutside = (event) => {
     if (!event.target.closest('.dropdown-container')) {
         closeDropdown();
@@ -147,46 +190,87 @@ const handleClickOutside = (event) => {
     }
 };
 
-// Função para marcar todas as notificações como lidas
 const markAllAsRead = async () => {
     try {
-        await axios.post('/notifications/mark-as-read'); // Marca todas as notificações como lidas no backend
-        unreadCount.value = 0; // Zera o contador no frontend
+        await axios.post('/notifications/mark-as-read');
+        unreadCount.value = 0;
         notifications.value = notifications.value.map(notification => ({
             ...notification,
-            read_at: new Date(), // Marca como lida localmente
+            read_at: new Date(),
         }));
     } catch (error) {
         console.error('Erro ao marcar notificações como lidas:', error);
     }
 };
-/// Buscar notificações do backend
+
+const handleSearch = async () => {
+    if (!searchQuery.value.trim()) {
+        searchResults.value = [];
+        return;
+    }
+
+    isLoading.value = true;
+    try {
+        const response = await axios.get(`/search-posts?query=${encodeURIComponent(searchQuery.value)}`);
+        searchResults.value = response.data;
+    } catch (error) {
+        console.error('Erro ao buscar posts:', error);
+        searchResults.value = [];
+    } finally {
+        isLoading.value = false;
+    }
+};
+
+const redirectToPost = (postId) => {
+    if (!postId) {
+        console.error('ID do post inválido');
+        return;
+    }
+
+    // Usando window.location para garantir o redirecionamento
+    window.location.href = `/posts/${postId}`;
+
+    // Alternativa com Inertia.js (comente a linha acima e descomente esta se preferir)
+    // router.visit(`/posts/${postId}`);
+};
+
 onMounted(() => {
     axios
         .get('/notifications')
         .then(response => {
             notifications.value = response.data.notifications;
-            unreadCount.value = response.data.unread_count; // Contador de notificações não lidas
+            unreadCount.value = response.data.unread_count;
         })
         .catch(error => {
             console.error('Erro ao carregar notificações:', error);
         });
+
+    updateActiveMenu();
+    router.on('navigate', () => {
+        updateActiveMenu();
+    });
+
+    document.addEventListener('click', handleClickOutside);
 });
 
-onMounted(() => {
-    document.addEventListener('click', handleClickOutside);
-})
-// Remove o evento de clique fora do componente quando o componente for desmontado
 onBeforeUnmount(() => {
     document.removeEventListener('click', handleClickOutside);
 });
 
-// Função para alterar o menu ativo
 const setActiveMenu = (menu) => {
     activeMenu.value = menu;
 };
+
+watch(isSearchExpanded, (newValue) => {
+    if (!newValue && !searchQuery.value) {
+        searchResults.value = [];
+    }
+});
 </script>
 
 <style scoped>
-/* Adicione estilos específicos para este componente aqui */
+/* Estilize o spinner e a lista suspensa conforme necessário */
+.fa-spinner {
+    font-size: 1.2rem;
+}
 </style>

@@ -16,7 +16,7 @@ class Post extends Model
 
     protected $dates = ['created_at', 'updated_at'];
 
-    protected $fillable = ['title', 'description', 'user_id'];
+    protected $fillable = ['title', 'description', 'images', 'user_id'];
 
     // Relacionamento com o usuário (autor do post)
     public function user()

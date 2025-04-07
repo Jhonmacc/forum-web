@@ -1,5 +1,6 @@
 import './bootstrap';
 import '../css/app.css';
+import '@vueup/vue-quill/dist/vue-quill.snow.css';
 import '@fortawesome/fontawesome-free/css/all.css';
 import PrimeVue from 'primevue/config';
 import Aura from '@primevue/themes/aura';

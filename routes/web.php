@@ -1,16 +1,17 @@
 <?php
-use Illuminate\Foundation\Application;
-use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+use Illuminate\Support\Facades\Route;
+use Illuminate\Foundation\Application;
+use App\Http\Controllers\TagController;
+use App\Http\Controllers\UserController;
+use App\Http\Controllers\WordController;
 use App\Http\Controllers\ForumController;
 use App\Http\Controllers\PostsController;
-use App\Http\Controllers\TagController;
-use App\Http\Controllers\WordController;
-use App\Http\Controllers\CommentController;
-use App\Http\Controllers\UserController;
-use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\ReplyController;
+use App\Http\Controllers\SearchController;
+use App\Http\Controllers\CommentController;
 use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\NotificationController;
 
 Route::get('/', function () {
     return Inertia::render('Welcome', [
@@ -32,15 +33,23 @@ Route::middleware([
         return Inertia::render('Dashboard');
     })->name('dashboard');
 
-        // Search Users
-        Route::get('/users/search', [UserController::class, 'search']);
+    // Search Users
+    Route::get('/users/search', [UserController::class, 'search']);
+    Route::get('/search-posts', [SearchController::class, 'searchPosts']);
 
-  // Fórum
-        Route::prefix('forum')->group(function () {
-        Route::get('/', [ForumController::class, 'index'])->name('forum.index');
+    // Rota para upload de imagens
+    Route::post('/posts/upload-image', [PostsController::class, 'uploadImage'])->middleware('auth')->name('posts.upload-image');
+
+    // Fórum
+    Route::prefix('forum')->group(function () {
+    Route::get('/', [ForumController::class, 'index'])->name('forum.index');
     });
+
+    // Perfil dos Usuários
     Route::get('/users/{id}', [UserProfileController::class, 'show'])->name('users.show');
     Route::get('/users/by-username/{username}', [UserProfileController::class, 'getUserByUsername']);
+
+    // Posts
     Route::prefix('posts')->group(function () {
         Route::post('/', [PostsController::class, 'store'])->name('posts.store');
         Route::post('/{id}/like', [PostsController::class, 'like'])->middleware('auth');
@@ -49,6 +58,7 @@ Route::middleware([
         Route::put('/{postId}', [PostsController::class, 'update'])->name('posts.update');
         Route::delete('/{postId}', [PostsController::class, 'destroy'])->name('posts.destroy');
     });
+
     // Tags
     Route::prefix('tags')->group(function () {
         Route::get('/', [TagController::class, 'index'])->name('tags.index');  // Rota de exibição de tags
@@ -70,6 +80,7 @@ Route::middleware([
             'unread_count' => $user->unreadNotifications->count(), // Contagem de notificações não lidas
         ]);
     })->middleware('auth');
+
     // marcar notificações como lidas
     Route::post('/notifications/mark-as-read', function () {
         $user = auth()->user();
@@ -88,10 +99,12 @@ Route::middleware([
     Route::put('/comments/{comment}', [CommentController::class, 'update']); // Nova rota para atualizar comentários
     Route::delete('/comments/{comment}', [CommentController::class, 'destroy']); // Nova rota para excluir comentários
     });
+
     // Rotas para respostas
     Route::post('/replies/{reply}/like', [CommentController::class, 'toggleLikeReply']);
     Route::put('/replies/{reply}', [CommentController::class, 'updateReply']); // Nova rota para atualizar respostas
     Route::delete('/replies/{reply}', [CommentController::class, 'destroyReply']); // Nova rota para excluir respostas
+
     // Words Pages
     Route::post('/words', [WordController::class, 'store'])->name('words.store');
     Route::get('/api/words', [WordController::class, 'index'])->name('api.words.index');

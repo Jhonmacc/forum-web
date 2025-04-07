@@ -12,6 +12,7 @@ use App\Notifications\CommentReplied;
 use App\Notifications\CommentLiked;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
 
 class CommentController extends Controller
 {
@@ -80,85 +81,102 @@ class CommentController extends Controller
     }
 
     public function replyToComment(Request $request, Comment $comment)
-{
-    $validated = $request->validate([
-        'body' => 'required|string',
-        'mentions' => 'nullable|array',
-    ]);
+    {
+        $validated = $request->validate([
+            'body' => 'required|string',
+            'mentions' => 'nullable|array',
+        ]);
 
-    $reply = $comment->replies()->create([
-        'user_id' => Auth::id(),
-        'body' => $validated['body'],
-    ]);
+        $reply = $comment->replies()->create([
+            'user_id' => Auth::id(),
+            'body' => $validated['body'],
+        ]);
 
-    $reply->load('user');
+        $reply->load('user');
 
-    if ($comment->user_id !== Auth::id()) {
-        $comment->user->notify(new CommentReplied($reply, $comment));
-    }
+        if ($comment->user_id !== Auth::id()) {
+            $comment->user->notify(new CommentReplied($reply, $comment));
+        }
 
-    if (!empty($validated['mentions'])) {
-        $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all();
-        $mentionedUsers = User::whereIn('name', $mentionedUsernames)->get();
+        if (!empty($validated['mentions'])) {
+            $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all(); // Tenta usar 'name'
+            Log::info('Menções recebidas para replyToComment:', ['mentions' => $mentionedUsernames]);
 
-        foreach ($mentionedUsers as $user) {
-            if ($user->id !== Auth::id()) {
-                Mention::create([
-                    'reply_id' => $reply->id,
-                    'mentioned_user_id' => $user->id,
-                ]);
-                $user->notify(new MentionedInReply($reply, Auth::user()->name));
+            if (empty($mentionedUsernames)) {
+                $mentionedUsernames = collect($validated['mentions'])->pluck('username')->all(); // Fallback para 'username'
+                Log::info('Tentativa de fallback para username:', ['mentions' => $mentionedUsernames]);
+            }
+
+            $mentionedUsers = User::whereIn('name', $mentionedUsernames)->orWhereIn('username', $mentionedUsernames)->get();
+            Log::info('Usuários encontrados:', ['users' => $mentionedUsers->pluck('id')->all()]);
+
+            foreach ($mentionedUsers as $user) {
+                if ($user->id !== Auth::id()) {
+                    Mention::create([
+                        'reply_id' => $reply->id,
+                        'mentioned_user_id' => $user->id,
+                    ]);
+                    $user->notify(new MentionedInReply($reply, Auth::user()->name));
+                    Log::info('Notificação enviada para:', ['user_id' => $user->id, 'username' => $user->username]);
+                }
             }
         }
+
+        return response()->json($reply, 201);
     }
 
-    return response()->json($reply, 201);
-}
+    public function replyToReply(Request $request, Reply $reply)
+    {
+        $validated = $request->validate([
+            'body' => 'required|string',
+            'mentions' => 'nullable|array',
+        ]);
 
-public function replyToReply(Request $request, Reply $reply)
-{
-    $validated = $request->validate([
-        'body' => 'required|string',
-        'mentions' => 'nullable|array',
-    ]);
+        $newReply = $reply->children()->create([
+            'user_id' => Auth::id(),
+            'body' => $validated['body'],
+            'comment_id' => $reply->comment_id,
+        ]);
 
-    $newReply = $reply->children()->create([
-        'user_id' => Auth::id(),
-        'body' => $validated['body'],
-        'comment_id' => $reply->comment_id,
-    ]);
+        $newReply->load('user', 'likes', 'children');
 
-    $newReply->load('user', 'likes', 'children');
+        Log::info('Nova resposta aninhada criada:', [
+            'reply_id' => $newReply->id,
+            'comment_id' => $newReply->comment_id,
+            'parent_id' => $newReply->parent_id,
+            'body' => $newReply->body,
+        ]);
 
-    // Log para depuração
-    \Log::info('Nova resposta aninhada criada:', [
-        'reply_id' => $newReply->id,
-        'comment_id' => $newReply->comment_id,
-        'parent_id' => $newReply->parent_id,
-        'body' => $newReply->body,
-    ]);
+        if ($reply->user_id !== Auth::id()) {
+            $reply->user->notify(new CommentReplied($newReply, $reply->comment));
+        }
 
-    if ($reply->user_id !== Auth::id()) {
-        $reply->user->notify(new CommentReplied($newReply, $reply->comment));
-    }
+        if (!empty($validated['mentions'])) {
+            $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all(); // Tenta usar 'name'
+            Log::info('Menções recebidas para replyToReply:', ['mentions' => $mentionedUsernames]);
 
-    if (!empty($validated['mentions'])) {
-        $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all();
-        $mentionedUsers = User::whereIn('name', $mentionedUsernames)->get();
+            if (empty($mentionedUsernames)) {
+                $mentionedUsernames = collect($validated['mentions'])->pluck('username')->all(); // Fallback para 'username'
+                Log::info('Tentativa de fallback para username:', ['mentions' => $mentionedUsernames]);
+            }
 
-        foreach ($mentionedUsers as $user) {
-            if ($user->id !== Auth::id()) {
-                Mention::create([
-                    'reply_id' => $newReply->id,
-                    'mentioned_user_id' => $user->id,
-                ]);
-                $user->notify(new MentionedInReply($newReply, Auth::user()->name));
+            $mentionedUsers = User::whereIn('name', $mentionedUsernames)->orWhereIn('username', $mentionedUsernames)->get();
+            Log::info('Usuários encontrados:', ['users' => $mentionedUsers->pluck('id')->all()]);
+
+            foreach ($mentionedUsers as $user) {
+                if ($user->id !== Auth::id()) {
+                    Mention::create([
+                        'reply_id' => $newReply->id,
+                        'mentioned_user_id' => $user->id,
+                    ]);
+                    $user->notify(new MentionedInReply($newReply, Auth::user()->name));
+                    Log::info('Notificação enviada para:', ['user_id' => $user->id, 'username' => $user->username]);
+                }
             }
         }
-    }
 
-    return response()->json($newReply, 201);
-}
+        return response()->json($newReply, 201);
+    }
 
     public function store(Request $request, Post $post)
     {
@@ -178,8 +196,16 @@ public function replyToReply(Request $request, Reply $reply)
             $comment->load('user');
 
             if (!empty($validated['mentions'])) {
-                $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all();
-                $mentionedUsers = User::whereIn('name', $mentionedUsernames)->get();
+                $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all(); // Tenta usar 'name'
+                Log::info('Menções recebidas para store:', ['mentions' => $mentionedUsernames]);
+
+                if (empty($mentionedUsernames)) {
+                    $mentionedUsernames = collect($validated['mentions'])->pluck('username')->all(); // Fallback para 'username'
+                    Log::info('Tentativa de fallback para username:', ['mentions' => $mentionedUsernames]);
+                }
+
+                $mentionedUsers = User::whereIn('name', $mentionedUsernames)->orWhereIn('username', $mentionedUsernames)->get();
+                Log::info('Usuários encontrados:', ['users' => $mentionedUsers->pluck('id')->all()]);
 
                 foreach ($mentionedUsers as $user) {
                     Mention::create([
@@ -188,6 +214,7 @@ public function replyToReply(Request $request, Reply $reply)
                     ]);
                     if ($user->id !== Auth::id()) {
                         $user->notify(new MentionedInComment($post, $comment, Auth::user()->name));
+                        Log::info('Notificação enviada para:', ['user_id' => $user->id, 'username' => $user->username]);
                     }
                 }
             }
@@ -206,7 +233,6 @@ public function replyToReply(Request $request, Reply $reply)
 
     public function update(Request $request, Comment $comment)
     {
-        // Verificar se o usuário autenticado é o autor do comentário
         if ($comment->user_id !== Auth::id()) {
             return response()->json([
                 'message' => 'Você não tem permissão para editar este comentário.',
@@ -223,13 +249,19 @@ public function replyToReply(Request $request, Reply $reply)
                 'content' => $validated['content'],
             ]);
 
-            // Remover menções antigas
             $comment->mentions()->delete();
 
-            // Adicionar novas menções
             if (!empty($validated['mentions'])) {
-                $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all();
-                $mentionedUsers = User::whereIn('name', $mentionedUsernames)->get();
+                $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all(); // Tenta usar 'name'
+                Log::info('Menções recebidas para update:', ['mentions' => $mentionedUsernames]);
+
+                if (empty($mentionedUsernames)) {
+                    $mentionedUsernames = collect($validated['mentions'])->pluck('username')->all(); // Fallback para 'username'
+                    Log::info('Tentativa de fallback para username:', ['mentions' => $mentionedUsernames]);
+                }
+
+                $mentionedUsers = User::whereIn('name', $mentionedUsernames)->orWhereIn('username', $mentionedUsernames)->get();
+                Log::info('Usuários encontrados:', ['users' => $mentionedUsers->pluck('id')->all()]);
 
                 foreach ($mentionedUsers as $user) {
                     Mention::create([
@@ -238,6 +270,7 @@ public function replyToReply(Request $request, Reply $reply)
                     ]);
                     if ($user->id !== Auth::id()) {
                         $user->notify(new MentionedInComment($comment->post, $comment, Auth::user()->name));
+                        Log::info('Notificação enviada para:', ['user_id' => $user->id, 'username' => $user->username]);
                     }
                 }
             }
@@ -257,64 +290,67 @@ public function replyToReply(Request $request, Reply $reply)
     }
 
     public function updateReply(Request $request, Reply $reply)
-{
-    // Verificar se o usuário autenticado é o autor da resposta
-    if ($reply->user_id !== Auth::id()) {
-        return response()->json([
-            'message' => 'Você não tem permissão para editar esta resposta.',
-        ], 403);
-    }
-
-    $validated = $request->validate([
-        'body' => 'required|string',
-        'mentions' => 'nullable|array',
-    ]);
-
-    try {
-        $reply->update([
-            'body' => $validated['body'],
-        ]);
-
-        // Remover menções antigas
-        \Log::info('Removendo menções antigas da resposta', ['reply_id' => $reply->id]);
-        $reply->mentions()->delete();
-
-        // Adicionar novas menções
-        if (!empty($validated['mentions'])) {
-            $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all();
-            $mentionedUsers = User::whereIn('name', $mentionedUsernames)->get();
-
-            \Log::info('Adicionando novas menções', ['mentioned_users' => $mentionedUsernames]);
-
-            foreach ($mentionedUsers as $user) {
-                Mention::create([
-                    'reply_id' => $reply->id,
-                    'mentioned_user_id' => $user->id,
-                ]);
-                if ($user->id !== Auth::id()) {
-                    $user->notify(new MentionedInReply($reply, Auth::user()->name));
-                }
-            }
+    {
+        if ($reply->user_id !== Auth::id()) {
+            return response()->json([
+                'message' => 'Você não tem permissão para editar esta resposta.',
+            ], 403);
         }
 
-        $reply->load('user');
+        $validated = $request->validate([
+            'body' => 'required|string',
+            'mentions' => 'nullable|array',
+        ]);
 
-        return response()->json([
-            'message' => 'Resposta atualizada com sucesso',
-            'data' => $reply,
-        ], 200);
-    } catch (\Exception $e) {
-        \Log::error('Erro ao atualizar resposta', ['error' => $e->getMessage()]);
-        return response()->json([
-            'message' => 'Erro ao atualizar resposta',
-            'error' => $e->getMessage(),
-        ], 500);
+        try {
+            $reply->update([
+                'body' => $validated['body'],
+            ]);
+
+            Log::info('Removendo menções antigas da resposta', ['reply_id' => $reply->id]);
+            $reply->mentions()->delete();
+
+            if (!empty($validated['mentions'])) {
+                $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all(); // Tenta usar 'name'
+                Log::info('Menções recebidas para updateReply:', ['mentions' => $mentionedUsernames]);
+
+                if (empty($mentionedUsernames)) {
+                    $mentionedUsernames = collect($validated['mentions'])->pluck('username')->all(); // Fallback para 'username'
+                    Log::info('Tentativa de fallback para username:', ['mentions' => $mentionedUsernames]);
+                }
+
+                $mentionedUsers = User::whereIn('name', $mentionedUsernames)->orWhereIn('username', $mentionedUsernames)->get();
+                Log::info('Usuários encontrados:', ['users' => $mentionedUsers->pluck('id')->all()]);
+
+                foreach ($mentionedUsers as $user) {
+                    Mention::create([
+                        'reply_id' => $reply->id,
+                        'mentioned_user_id' => $user->id,
+                    ]);
+                    if ($user->id !== Auth::id()) {
+                        $user->notify(new MentionedInReply($reply, Auth::user()->name));
+                        Log::info('Notificação enviada para:', ['user_id' => $user->id, 'username' => $user->username]);
+                    }
+                }
+            }
+
+            $reply->load('user');
+
+            return response()->json([
+                'message' => 'Resposta atualizada com sucesso',
+                'data' => $reply,
+            ], 200);
+        } catch (\Exception $e) {
+            Log::error('Erro ao atualizar resposta', ['error' => $e->getMessage()]);
+            return response()->json([
+                'message' => 'Erro ao atualizar resposta',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
     }
-}
 
     public function destroy(Comment $comment)
     {
-        // Verificar se o usuário autenticado é o autor do comentário
         if ($comment->user_id !== Auth::id()) {
             return response()->json([
                 'message' => 'Você não tem permissão para excluir este comentário.',
@@ -337,7 +373,6 @@ public function replyToReply(Request $request, Reply $reply)
 
     public function destroyReply(Reply $reply)
     {
-        // Verificar se o usuário autenticado é o autor da resposta
         if ($reply->user_id !== Auth::id()) {
             return response()->json([
                 'message' => 'Você não tem permissão para excluir esta resposta.',

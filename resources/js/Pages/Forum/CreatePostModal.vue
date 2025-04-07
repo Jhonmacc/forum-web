@@ -1,46 +1,47 @@
 <template>
-    <div class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
-        <div class="bg-white rounded shadow p-6 w-full max-w-4xl text-black">
-            <h2 class="text-xl font-semibold mb-4">Criar Novo Post</h2>
-            <div class="mb-4">
-                <label for="title" class="block text-sm font-medium text-gray-700">Título</label>
-                <input v-model="newPost.title" id="title"
-                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-indigo-500"
-                    :class="{ 'border-red-500': errors.title }" required />
-                <p v-if="errors.title" class="text-red-500 text-sm mt-1">{{ errors.title }}</p>
-            </div>
-            <div class="mb-4">
-                <label for="description" class="block text-sm font-medium text-gray-700">Descrição</label>
-                <div id="quill-editor" ref="quillEditor"
-                    class="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500"
-                    style="max-height: 200px; overflow-y: auto;">
+    <div class="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center p-4">
+        <div class="bg-white rounded shadow-lg w-full max-w-4xl text-black max-h-[90vh] flex flex-col modal-container">
+            <div class="modal-content p-6 overflow-y-auto">
+                <h2 class="text-xl text-gray-500 font-semibold mb-4">Nova Discussão</h2>
+                <div class="mb-4">
+                    <label for="title" class="block text-sm font-medium text-gray-400">Título</label>
+                    <input v-model="newPost.title" id="title"
+                        class="mt-1 block w-full border-gray-300 rounded-3xl shadow-sm focus:border-yellow-500 focus:ring-yellow-500"
+                        :class="{ 'border-red-500': errors.title }" required />
+                    <p v-if="errors.title" class="text-red-500 text-sm mt-1">{{ errors.title }}</p>
                 </div>
-                <p v-if="errors.description" class="text-red-500 text-sm mt-1">{{ errors.description }}</p>
-            </div>
-            <div class="mb-4">
-                <button @click="openTaggingModal" class="py-2 px-4 bg-gray-500 text-white rounded hover:bg-gray-600">
-                    Escolha as Tags
-                </button>
+                <div class="mb-4">
+                    <label for="description" class="block text-sm font-medium text-gray-400">Descrição</label>
+                    <TextQuill class="relative" ref="textQuill" v-model:content="newPost.description" />
+                    <p v-if="errors.description" class="text-red-500 text-sm mt-1">{{ errors.description }}</p>
+                </div>
+                <div class="mb-4">
+                    <button @click="openTaggingModal"
+                        class="py-2 px-4 bg-gray-500 text-white rounded hover:bg-gray-600">
+                        Escolha as Tags
+                    </button>
+                </div>
+
+                <div v-if="newPost.tags.length > 0" class="mb-4">
+                    <h1 class="font-medium text-gray-700">Tags Selecionadas:</h1>
+                    <div class="flex flex-wrap gap-2 mt-2">
+                        <span v-for="(tag, index) in newPost.tags" :key="index"
+                            class="flex items-center space-x-2 px-3 py-1 rounded-full text-white font-medium"
+                            :style="{ backgroundColor: tag.color || '#ccc' }">
+                            <i :class="tag.icon" class="text-sm"></i>
+                            <span>{{ tag.name }}</span>
+                        </span>
+                    </div>
+                </div>
+
+                <p v-if="errors.tags" class="text-red-500 text-sm mt-1">{{ errors.tags }}</p>
             </div>
 
-            <div v-if="newPost.tags.length > 0" class="mb-4">
-                <h1 class="font-medium text-gray-700">Tags Selecionadas:</h1>
-                <span class="list-disc list-inside">
-                    <span v-for="(tag, index) in newPost.tags" :key="index"
-                        class="flex items-center text-black space-x-2">
-                        <span class="w-4 h-4 rounded-full" :style="{ backgroundColor: tag.color }"></span>
-                        <span>{{ tag?.name }}</span>
-                    </span>
-                </span>
-            </div>
-
-            <p v-if="errors.tags" class="text-red-500 text-sm mt-1">{{ errors.tags }}</p>
-
-            <div class="flex justify-end space-x-4">
+            <div class="p-6 border-t border-gray-200 flex justify-end space-x-4">
                 <button @click="$emit('close')" class="py-2 px-4 bg-gray-300 text-gray-700 rounded hover:bg-gray-400">
                     Cancelar
                 </button>
-                <button @click="submitPost" class="py-2 px-4 bg-indigo-500 text-white rounded hover:bg-indigo-600">
+                <button @click="submitPost" class="py-2 px-4 bg-yellow-500 text-white rounded hover:bg-yellow-600">
                     Criar Post
                 </button>
             </div>
@@ -53,47 +54,23 @@
 
 <script>
 import TaggingModal from './TaggingModal.vue';
-import Swal from 'sweetalert2'; // Importando o SweetAlert2
-import Quill from 'quill'; // Importar o Quill.js
-import 'quill/dist/quill.snow.css'; // Estilo padrão do Quill.js
+import Swal from 'sweetalert2';
 import axios from 'axios';
+import TextQuill from '@/Components/TextQuill.vue';
 
 export default {
-    components: { TaggingModal },
+    components: { TaggingModal, TextQuill },
     data() {
         return {
             newPost: {
                 title: '',
-                description: '', // Conteúdo do editor
+                description: '',
                 tags: [],
             },
-            quillEditor: null, // Referência ao editor Quill
             showTaggingModal: false,
-            errors: {}, // Armazena mensagens de erro
+            errors: {},
         };
     },
-    mounted() {
-        // Inicializar o Quill.js
-        const editorElement = this.$refs.quillEditor;
-        if (editorElement) {
-            this.quillEditor = new Quill(editorElement, {
-                theme: 'snow', // Tema do Quill
-                placeholder: 'Escreva a descrição do post aqui...',
-                modules: {
-                    toolbar: [
-                        [{ header: [1, 2, false] }],
-                        ['bold', 'italic', 'underline'],
-                        ['link', 'image'],
-                        [{ list: 'ordered' }, { list: 'bullet' }],
-                        ['clean'],
-                    ],
-                },
-            });
-        } else {
-            console.error('Editor element not found');
-        }
-    },
-
     methods: {
         openTaggingModal() {
             this.showTaggingModal = true;
@@ -107,6 +84,8 @@ export default {
                 name: tag.name || '',
                 code: tag.code || null,
                 color: tag.color || '#ccc',
+                icon: tag.icon || 'fa-solid fa-tag', // Inclui o ícone
+                description: tag.description || '', // Inclui a descrição
             }));
         },
         validateForm() {
@@ -114,7 +93,7 @@ export default {
             if (!this.newPost.title.trim()) {
                 this.errors.title = 'Você precisa dar um título ao seu post.';
             }
-            const descriptionContent = this.quillEditor.getText().trim();
+            const descriptionContent = this.newPost.description.replace(/<[^>]+>/g, '').trim();
             if (!descriptionContent) {
                 this.errors.description = 'Você precisa dar uma descrição ao seu post.';
             }
@@ -127,9 +106,6 @@ export default {
             if (!this.validateForm()) {
                 return;
             }
-
-            // Obter o conteúdo HTML do editor Quill
-            this.newPost.description = this.quillEditor.root.innerHTML;
 
             const postPayload = {
                 title: this.newPost.title,
@@ -160,16 +136,22 @@ export default {
         clearForm() {
             this.newPost.title = '';
             this.newPost.description = '';
-            this.quillEditor.setContents([]); // Limpar o editor
+            this.$refs.textQuill.clearContent();
             this.newPost.tags = [];
         },
     },
 };
 </script>
+
 <style scoped>
-#quill-editor {
-    min-height: 150px;
-    max-height: 400px;
-    overflow-y: auto;
+.modal-content {
+    max-height: calc(90vh - 120px);
+    /* Ajusta a altura considerando o espaço dos botões e padding */
+}
+
+/* Estilo para o contorno amarelo sombreado do modal */
+.modal-container {
+    border: 4px solid #f59e0b; /* Contorno amarelo */
+    box-shadow: 0 0 15px rgba(245, 158, 11, 0.6); /* Sombra amarela suave */
 }
 </style>

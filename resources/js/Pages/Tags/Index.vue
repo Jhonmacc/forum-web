@@ -25,6 +25,12 @@
             placeholder="Ícone (ex: pi pi-github)"
             class="flex-1 p-2 border rounded focus:outline-none focus:ring focus:ring-indigo-300"
             />
+            <textarea
+            v-model="newTag.description"
+            type="text"
+            placeholder="Descrição (ex: Referentes a bugs...)"
+            class="flex-1 p-2 border rounded focus:outline-none focus:ring focus:ring-indigo-300"
+            />
 
           <button
             type="submit"
@@ -47,7 +53,7 @@
             <span>{{ tag.name }}</span>
             <span :style="{ backgroundColor: tag.color, color: 'white', padding: '5px', borderRadius: '5px' }"> {{ tag.code }} </span>
             <span>{{ tag.icon }}</span>
-
+            <p>{{ tag.description }}</p>
             <button
               @click="deleteTag(tag.id)"
               class="text-red-500 hover:text-red-700"
@@ -86,6 +92,7 @@
             newTag.value.code = ''; // Limpar o código
             newTag.value.color = '#000000';
             newTag.value.icon = '';
+            newTag.value.description = '';
             errors.value = {};
           },
           onError: (err) => {
