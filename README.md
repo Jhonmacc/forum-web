@@ -2,7 +2,10 @@
 
 Bem-vindo(a) ao **Sistema de Fórum Interativo**, um projeto completo desenvolvido para oferecer uma experiência fluida e dinâmica para comunidades online! Este sistema foi construído do zero com tecnologias modernas, permitindo que os usuários criem, editem e interajam com posts de forma intuitiva.
 
+![Imagem do Projeto](https://i.imgur.com/C6svaFy.png)
+
 ![Imagem do Projeto](https://i.imgur.com/oTWUp3z.png)
+
 
 ## 📋 Sobre o Projeto
 
