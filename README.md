@@ -127,7 +127,7 @@ Necessário e Importante: Tela para criar as tags http://localhost:suaporta/tags
 
 ## 🏷️ Tags
 
-`#Php` `#Laravel` `#Vuejs` `#TailwindCSS` `#MariaDB` `#DesenvolvimentoWeb` `#GestãoDeCertificados` `#Inovação` `#Tecnologia`
+`#Php` `#Laravel` `#Vuejs` `#TailwindCSS` `#MariaDB` `#DesenvolvimentoWeb` `#Forum` `#Inovação` `#Tecnologia`
 
 💻 Desenvolvido com ❤️ e muita dedicação para uma imerssão maior em UX Designer.
 
