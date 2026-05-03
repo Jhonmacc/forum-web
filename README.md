@@ -14,6 +14,8 @@ The project now runs preferably with Docker Compose, including PHP-FPM, Nginx, M
 
 ![Project Image](https://i.imgur.com/RtVYtWp.png)
 
+![Project Image](https://i.imgur.com/qvSNU3S.png)
+
 ### Main Features
 
 - Public `/` page where visitors can browse discussions, create an account, or sign in.
@@ -309,13 +311,15 @@ TechDevs Forum Web é uma aplicação de fórum moderna criada com Laravel, Iner
 
 O projeto agora roda preferencialmente com Docker Compose, incluindo PHP-FPM, Nginx, MySQL, Redis, worker de filas e Vite.
 
-![Imagem do Projeto](https://i.imgur.com/w2lobVh.png)
+![Imagem do Projeto](https://i.imgur.com/6erbWYl.png)
 
-![Imagem do Projeto](https://i.imgur.com/zseuvxk.png)
+![Imagem do Projeto](https://i.imgur.com/4BmJj2v.png)
 
-![Imagem do Projeto](https://i.imgur.com/We3Vv33.png)
+![Imagem do Projeto](https://i.imgur.com/Jdi3t8Z.png)
 
-![Imagem do Projeto](https://i.imgur.com/RtVYtWp.png)
+![Imagem do Projeto](https://i.imgur.com/KLCsdmW.png)
+
+![Imagem do Projeto](https://i.imgur.com/5puKg6T.png)
 
 ### Principais Recursos
 
