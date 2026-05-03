@@ -10,17 +10,30 @@ use App\Http\Controllers\PostsController;
 use App\Http\Controllers\ReplyController;
 use App\Http\Controllers\SearchController;
 use App\Http\Controllers\CommentController;
-use App\Http\Controllers\UserProfileController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\UserProfileController;
+use App\Http\Controllers\LinkPreviewController;
+use App\Http\Controllers\Admin\DashboardController;
+use App\Http\Controllers\Admin\SettingsController;
 
-Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
-});
+// Rota pública — Landing page com timeline
+Route::get('/', [ForumController::class, 'publicIndex'])->name('home');
+Route::get('/login', fn () => auth()->check()
+    ? redirect()->route('forum.index')
+    : redirect()->route('home', ['auth' => 'login']));
+Route::get('/register', fn () => auth()->check()
+    ? redirect()->route('forum.index')
+    : redirect()->route('home', ['auth' => 'register']));
+
+// Rotas públicas de leitura
+Route::middleware([
+    'auth:sanctum',
+    config('jetstream.auth_session'),
+    'verified',
+])->get('/posts/search', [SearchController::class, 'searchPostReferences'])->name('posts.search');
+Route::get('/posts/{postId}', [PostsController::class, 'show'])->name('posts.show');
+Route::get('/search-posts', [SearchController::class, 'searchPosts'])->name('search.posts');
+Route::get('/posts/{post}/comments', [CommentController::class, 'index']);
 
 // Rotas protegidas por autenticação
 Route::middleware([
@@ -28,86 +41,87 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
-    // Dashboard
-    Route::get('/dashboard', function () {
-        return Inertia::render('Dashboard');
-    })->name('dashboard');
+    // Dashboard administrativo
+    Route::get('/dashboard', [DashboardController::class, 'index'])
+        ->middleware('admin')
+        ->name('dashboard');
 
     // Search Users
     Route::get('/users/search', [UserController::class, 'search']);
-    Route::get('/search-posts', [SearchController::class, 'searchPosts']);
+    Route::post('/links/preview', [LinkPreviewController::class, 'store'])->name('links.preview');
 
     // Rota para upload de imagens
-    Route::post('/posts/upload-image', [PostsController::class, 'uploadImage'])->middleware('auth')->name('posts.upload-image');
+    Route::post('/posts/upload-image', [PostsController::class, 'uploadImage'])->name('posts.upload-image');
 
-    // Fórum
+    // Fórum (autenticado)
     Route::prefix('forum')->group(function () {
-    Route::get('/', [ForumController::class, 'index'])->name('forum.index');
+        Route::get('/', [ForumController::class, 'index'])->name('forum.index');
+        Route::get('/tags', [TagController::class, 'index'])->middleware('admin')->name('forum.tags.index');
     });
 
     // Perfil dos Usuários
     Route::get('/users/{id}', [UserProfileController::class, 'show'])->name('users.show');
     Route::get('/users/by-username/{username}', [UserProfileController::class, 'getUserByUsername']);
 
-    // Posts
+    // Posts (escrita)
     Route::prefix('posts')->group(function () {
         Route::post('/', [PostsController::class, 'store'])->name('posts.store');
-        Route::post('/{id}/like', [PostsController::class, 'like'])->middleware('auth');
-        Route::get('/{postId}', [PostsController::class, 'show'])->name('posts.show');
+        Route::post('/{id}/like', [PostsController::class, 'like']);
         Route::get('/{postId}/edit', [PostsController::class, 'edit'])->name('posts.edit');
         Route::put('/{postId}', [PostsController::class, 'update'])->name('posts.update');
         Route::delete('/{postId}', [PostsController::class, 'destroy'])->name('posts.destroy');
     });
 
     // Tags
-    Route::prefix('tags')->group(function () {
-        Route::get('/', [TagController::class, 'index'])->name('tags.index');  // Rota de exibição de tags
-        Route::post('/', [TagController::class, 'store'])->name('tags.store');  // Rota de criação de tags
-        Route::delete('/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');  // Rota de exclusão de tags
+    Route::middleware('admin')->prefix('tags')->group(function () {
+        Route::get('/', [TagController::class, 'index'])->name('tags.index');
+        Route::post('/', [TagController::class, 'store'])->name('tags.store');
+        Route::put('/{tag}', [TagController::class, 'update'])->name('tags.update');
+        Route::delete('/{tag}', [TagController::class, 'destroy'])->name('tags.destroy');
     });
-        Route::get('/show', [TagController::class, 'show'])->name('tags.show');   // Rota carrega as tags
+    Route::get('/show', [TagController::class, 'show'])->name('tags.show');
 
-    // Rotas Commentários
-    Route::post('/posts/{post}/comments', [CommentController::class, 'store'])->middleware('auth');
-    Route::get('/posts/{post}/comments', [CommentController::class, 'index']);
+    // Comentários (escrita)
+    Route::post('/posts/{post}/comments', [CommentController::class, 'store']);
 
     // Notificações
-    // buscar notificações
-    Route::get('/notifications', function () {
-        $user = auth()->user();
-        return response()->json([
-            'notifications' => $user->notifications, // Todas as notificações
-            'unread_count' => $user->unreadNotifications->count(), // Contagem de notificações não lidas
-        ]);
-    })->middleware('auth');
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/mark-as-read', [NotificationController::class, 'markAllAsRead'])->name('notifications.mark-all-read');
+    Route::post('/notifications/{notification}/read', [NotificationController::class, 'markAsRead'])->name('notifications.mark-read');
 
-    // marcar notificações como lidas
-    Route::post('/notifications/mark-as-read', function () {
-        $user = auth()->user();
-        $user->unreadNotifications->markAsRead();
-        return response()->json(['message' => 'Notificações marcadas como lidas.']);
-    })->middleware('auth');
+    // Troca de idioma
+    Route::post('/locale', function (\Illuminate\Http\Request $request) {
+        $locale = $request->validate(['locale' => 'required|string|in:pt-BR,en'])['locale'];
 
-    // Rotas de repostas de comentários e curtidas
-    Route::middleware('auth')->group(function () {
-    Route::post('/comments/{comment}/like', [CommentController::class, 'likeComment']);
-    Route::post('/comments/{comment}/reply', [CommentController::class, 'replyToComment']);
+        if (auth()->check()) {
+            auth()->user()->update(['locale' => $locale]);
+        }
+
+        return response()->json(['message' => __('messages.locale_updated')])
+            ->cookie('locale', $locale, 525600);
+    })->name('locale.update');
+
+    // Respostas e curtidas de comentários
     Route::post('/comments/{comment}/like', [CommentController::class, 'toggleLike']);
+    Route::post('/comments/{comment}/reply', [CommentController::class, 'replyToComment']);
     Route::post('/replies/{reply}/reply', [CommentController::class, 'replyToReply']);
     Route::get('/comments/{comment}', [CommentController::class, 'show']);
     Route::get('/replies/{reply}', [ReplyController::class, 'show']);
-    Route::put('/comments/{comment}', [CommentController::class, 'update']); // Nova rota para atualizar comentários
-    Route::delete('/comments/{comment}', [CommentController::class, 'destroy']); // Nova rota para excluir comentários
-    });
+    Route::put('/comments/{comment}', [CommentController::class, 'update']);
+    Route::delete('/comments/{comment}', [CommentController::class, 'destroy']);
 
-    // Rotas para respostas
     Route::post('/replies/{reply}/like', [CommentController::class, 'toggleLikeReply']);
-    Route::put('/replies/{reply}', [CommentController::class, 'updateReply']); // Nova rota para atualizar respostas
-    Route::delete('/replies/{reply}', [CommentController::class, 'destroyReply']); // Nova rota para excluir respostas
+    Route::put('/replies/{reply}', [CommentController::class, 'updateReply']);
+    Route::delete('/replies/{reply}', [CommentController::class, 'destroyReply']);
 
-    // Words Pages
+    // Words
     Route::post('/words', [WordController::class, 'store'])->name('words.store');
     Route::get('/api/words', [WordController::class, 'index'])->name('api.words.index');
     Route::get('/words', fn () => Inertia::render('Document/ListWord'))->name('words.list');
     Route::get('/words/{id}', [WordController::class, 'show'])->name('words.view');
+
+    // Admin
+    Route::middleware('admin')->prefix('admin')->group(function () {
+        Route::put('/settings', [SettingsController::class, 'update'])->name('admin.settings.update');
+    });
 });

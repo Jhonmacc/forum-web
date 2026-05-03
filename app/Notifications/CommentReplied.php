@@ -26,8 +26,14 @@ class CommentReplied extends Notification implements ShouldQueue
 
     public function toDatabase($notifiable)
     {
+        $locale = $notifiable->locale ?? config('app.locale');
+        app()->setLocale($locale);
+
         return [
-            'message' => "@{$this->reply->user->name} respondeu seu comentário no post '{$this->comment->post->title}'.",
+            'message' => __('notifications.comment_replied', [
+                'name' => $this->reply->user->name,
+                'title' => $this->comment->post->title,
+            ]),
             'reply_id' => $this->reply->id,
             'comment_id' => $this->comment->id,
             'post_id' => $this->comment->post_id,

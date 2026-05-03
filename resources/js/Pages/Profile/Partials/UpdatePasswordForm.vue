@@ -40,16 +40,16 @@ const updatePassword = () => {
 <template>
     <FormSection @submitted="updatePassword">
         <template #title>
-            Atualizar senha
+            {{ $t('profile.update_password') }}
         </template>
 
         <template #description>
-            Certifique-se de que sua conta esteja usando uma senha longa e aleatória para permanecer segura.
+            {{ $t('profile.update_password_description') }}
         </template>
 
         <template #form>
             <div class="col-span-6 sm:col-span-4">
-                <InputLabel for="current_password" value="Senha atual" />
+                <InputLabel for="current_password" :value="$t('profile.current_password')" />
                 <TextInput
                     id="current_password"
                     ref="currentPasswordInput"
@@ -62,7 +62,7 @@ const updatePassword = () => {
             </div>
 
             <div class="col-span-6 sm:col-span-4">
-                <InputLabel for="password" value="Nova Senha" />
+                <InputLabel for="password" :value="$t('profile.new_password')" />
                 <TextInput
                     id="password"
                     ref="passwordInput"
@@ -75,7 +75,7 @@ const updatePassword = () => {
             </div>
 
             <div class="col-span-6 sm:col-span-4">
-                <InputLabel for="password_confirmation" value="Confirme a Senha" />
+                <InputLabel for="password_confirmation" :value="$t('profile.confirm_password')" />
                 <TextInput
                     id="password_confirmation"
                     v-model="form.password_confirmation"
@@ -89,11 +89,11 @@ const updatePassword = () => {
 
         <template #actions>
             <ActionMessage :on="form.recentlySuccessful" class="me-3">
-                Salvo.
+                {{ $t('profile.saved') }}
             </ActionMessage>
 
             <PrimaryButton :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
-                Salvar
+                {{ $t('common.save') }}
             </PrimaryButton>
         </template>
     </FormSection>

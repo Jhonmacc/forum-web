@@ -40,32 +40,32 @@ const closeModal = () => {
 <template>
     <ActionSection>
         <template #title>
-            Deletar Conta
+            {{ $t('profile.delete_account') }}
         </template>
 
         <template #description>
-            Exclua sua conta permanentemente.
+            {{ $t('profile.delete_account_description') }}
         </template>
 
         <template #content>
             <div class="max-w-xl text-sm text-gray-600 dark:text-gray-400">
-                Depois que sua conta for excluída, todos os seus recursos e dados serão excluídos permanentemente. Antes de excluir sua conta, baixe quaisquer dados ou informações que você deseja reter.
+                {{ $t('profile.delete_account_warning') }}
             </div>
 
             <div class="mt-5">
                 <DangerButton @click="confirmUserDeletion">
-                    Deletar Conta
+                    {{ $t('profile.delete_account') }}
                 </DangerButton>
             </div>
 
             <!-- Delete Account Confirmation Modal -->
             <DialogModal :show="confirmingUserDeletion" @close="closeModal">
                 <template #title>
-                    Delete Account
+                    {{ $t('profile.delete_account') }}
                 </template>
 
                 <template #content>
-                    Are you sure you want to delete your account? Once your account is deleted, all of its resources and data will be permanently deleted. Please enter your password to confirm you would like to permanently delete your account.
+                    {{ $t('profile.delete_account_confirmation') }}
 
                     <div class="mt-4">
                         <TextInput
@@ -73,7 +73,7 @@ const closeModal = () => {
                             v-model="form.password"
                             type="password"
                             class="mt-1 block w-3/4"
-                            placeholder="Password"
+                            :placeholder="$t('profile.password')"
                             autocomplete="current-password"
                             @keyup.enter="deleteUser"
                         />
@@ -84,7 +84,7 @@ const closeModal = () => {
 
                 <template #footer>
                     <SecondaryButton @click="closeModal">
-                        Cancel
+                        {{ $t('common.cancel') }}
                     </SecondaryButton>
 
                     <DangerButton
@@ -93,7 +93,7 @@ const closeModal = () => {
                         :disabled="form.processing"
                         @click="deleteUser"
                     >
-                        Delete Account
+                        {{ $t('profile.delete_account') }}
                     </DangerButton>
                 </template>
             </DialogModal>

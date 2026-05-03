@@ -10,21 +10,61 @@ use App\Notifications\MentionedInReply;
 use App\Notifications\MentionedInComment;
 use App\Notifications\CommentReplied;
 use App\Notifications\CommentLiked;
+use App\Notifications\PostCommented;
+use App\Services\HtmlContentSanitizer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Validator;
 
 class CommentController extends Controller
 {
     private function extractMentions($text)
     {
-        preg_match_all('/@([\w\s]+)/', $text, $matches);
-        return array_unique($matches[1]);
+        return app(HtmlContentSanitizer::class)->extractMentionUsernames($text);
+    }
+
+    private function validateRichContent(Request $request, string $field): array
+    {
+        $validator = Validator::make($request->all(), [
+            $field => 'required|string|max:' . config('forum.limits.comment_body_html'),
+            'mentions' => 'nullable|array',
+        ]);
+
+        $validator->after(function ($validator) use ($request, $field) {
+            $plainText = app(HtmlContentSanitizer::class)->plainText($request->input($field));
+
+            if (mb_strlen($plainText) > config('forum.limits.comment_body')) {
+                $validator->errors()->add($field, __('validation.max.string', [
+                    'attribute' => $field,
+                    'max' => config('forum.limits.comment_body'),
+                ]));
+            }
+        });
+
+        return $validator->validate();
+    }
+
+    private function mentionedUsernames(array $validated, string $content): array
+    {
+        $requested = collect($validated['mentions'] ?? [])
+            ->flatMap(fn ($mention) => [$mention['username'] ?? null, $mention['name'] ?? null])
+            ->filter()
+            ->all();
+
+        return array_values(array_unique(array_merge($requested, $this->extractMentions($content))));
     }
 
     public function index(Post $post)
     {
         $comments = $post->comments()->with('user', 'likes', 'replies.user', 'replies.likes', 'replies.children')->latest()->get();
+        $sanitizer = app(HtmlContentSanitizer::class);
+        $comments->each(function ($comment) use ($sanitizer) {
+            $comment->content = $sanitizer->cleanComment($comment->content);
+            $comment->replies->each(function ($reply) use ($sanitizer) {
+                $this->sanitizeReplyTree($reply, $sanitizer);
+            });
+        });
         return response()->json($comments);
     }
 
@@ -77,19 +117,30 @@ class CommentController extends Controller
     public function show(Comment $comment)
     {
         $comment->load(['user', 'likes', 'replies.user', 'replies.likes', 'replies.children.user', 'replies.children.likes']);
+        $sanitizer = app(HtmlContentSanitizer::class);
+        $comment->content = $sanitizer->cleanComment($comment->content);
+        $comment->replies->each(function ($reply) use ($sanitizer) {
+            $this->sanitizeReplyTree($reply, $sanitizer);
+        });
         return response()->json($comment, 200);
+    }
+
+    private function sanitizeReplyTree(Reply $reply, HtmlContentSanitizer $sanitizer): void
+    {
+        $reply->body = $sanitizer->cleanComment($reply->body);
+        $reply->children->each(function ($child) use ($sanitizer) {
+            $this->sanitizeReplyTree($child, $sanitizer);
+        });
     }
 
     public function replyToComment(Request $request, Comment $comment)
     {
-        $validated = $request->validate([
-            'body' => 'required|string',
-            'mentions' => 'nullable|array',
-        ]);
+        $validated = $this->validateRichContent($request, 'body');
+        $body = app(HtmlContentSanitizer::class)->cleanComment($validated['body']);
 
         $reply = $comment->replies()->create([
             'user_id' => Auth::id(),
-            'body' => $validated['body'],
+            'body' => $body,
         ]);
 
         $reply->load('user');
@@ -98,14 +149,10 @@ class CommentController extends Controller
             $comment->user->notify(new CommentReplied($reply, $comment));
         }
 
-        if (!empty($validated['mentions'])) {
-            $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all(); // Tenta usar 'name'
-            Log::info('Menções recebidas para replyToComment:', ['mentions' => $mentionedUsernames]);
+        $mentionedUsernames = $this->mentionedUsernames($validated, $body);
 
-            if (empty($mentionedUsernames)) {
-                $mentionedUsernames = collect($validated['mentions'])->pluck('username')->all(); // Fallback para 'username'
-                Log::info('Tentativa de fallback para username:', ['mentions' => $mentionedUsernames]);
-            }
+        if (!empty($mentionedUsernames)) {
+            Log::info('Menções recebidas para replyToComment:', ['mentions' => $mentionedUsernames]);
 
             $mentionedUsers = User::whereIn('name', $mentionedUsernames)->orWhereIn('username', $mentionedUsernames)->get();
             Log::info('Usuários encontrados:', ['users' => $mentionedUsers->pluck('id')->all()]);
@@ -127,14 +174,12 @@ class CommentController extends Controller
 
     public function replyToReply(Request $request, Reply $reply)
     {
-        $validated = $request->validate([
-            'body' => 'required|string',
-            'mentions' => 'nullable|array',
-        ]);
+        $validated = $this->validateRichContent($request, 'body');
+        $body = app(HtmlContentSanitizer::class)->cleanComment($validated['body']);
 
         $newReply = $reply->children()->create([
             'user_id' => Auth::id(),
-            'body' => $validated['body'],
+            'body' => $body,
             'comment_id' => $reply->comment_id,
         ]);
 
@@ -151,14 +196,10 @@ class CommentController extends Controller
             $reply->user->notify(new CommentReplied($newReply, $reply->comment));
         }
 
-        if (!empty($validated['mentions'])) {
-            $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all(); // Tenta usar 'name'
-            Log::info('Menções recebidas para replyToReply:', ['mentions' => $mentionedUsernames]);
+        $mentionedUsernames = $this->mentionedUsernames($validated, $body);
 
-            if (empty($mentionedUsernames)) {
-                $mentionedUsernames = collect($validated['mentions'])->pluck('username')->all(); // Fallback para 'username'
-                Log::info('Tentativa de fallback para username:', ['mentions' => $mentionedUsernames]);
-            }
+        if (!empty($mentionedUsernames)) {
+            Log::info('Menções recebidas para replyToReply:', ['mentions' => $mentionedUsernames]);
 
             $mentionedUsers = User::whereIn('name', $mentionedUsernames)->orWhereIn('username', $mentionedUsernames)->get();
             Log::info('Usuários encontrados:', ['users' => $mentionedUsers->pluck('id')->all()]);
@@ -180,29 +221,29 @@ class CommentController extends Controller
 
     public function store(Request $request, Post $post)
     {
-        $validated = $request->validate([
-            'content' => 'required|string',
+        $validated = $this->validateRichContent($request, 'content');
+        $request->validate([
             'post_id' => 'required|exists:posts,id',
-            'mentions' => 'nullable|array',
         ]);
+        $content = app(HtmlContentSanitizer::class)->cleanComment($validated['content']);
 
         try {
             $comment = Comment::create([
-                'content' => $validated['content'],
+                'content' => $content,
                 'post_id' => $post->id,
                 'user_id' => Auth::id(),
             ]);
 
             $comment->load('user');
 
-            if (!empty($validated['mentions'])) {
-                $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all(); // Tenta usar 'name'
-                Log::info('Menções recebidas para store:', ['mentions' => $mentionedUsernames]);
+            if ($post->user_id !== Auth::id()) {
+                $post->user->notify(new PostCommented($post, $comment, Auth::user()));
+            }
 
-                if (empty($mentionedUsernames)) {
-                    $mentionedUsernames = collect($validated['mentions'])->pluck('username')->all(); // Fallback para 'username'
-                    Log::info('Tentativa de fallback para username:', ['mentions' => $mentionedUsernames]);
-                }
+            $mentionedUsernames = $this->mentionedUsernames($validated, $content);
+
+            if (!empty($mentionedUsernames)) {
+                Log::info('Menções recebidas para store:', ['mentions' => $mentionedUsernames]);
 
                 $mentionedUsers = User::whereIn('name', $mentionedUsernames)->orWhereIn('username', $mentionedUsernames)->get();
                 Log::info('Usuários encontrados:', ['users' => $mentionedUsers->pluck('id')->all()]);
@@ -220,12 +261,12 @@ class CommentController extends Controller
             }
 
             return response()->json([
-                'message' => 'Comentário adicionado com sucesso',
+                'message' => __('messages.comment_added'),
                 'data' => $comment,
             ], 201);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Erro ao adicionar comentário',
+                'message' => __('messages.comment_add_error'),
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -235,30 +276,24 @@ class CommentController extends Controller
     {
         if ($comment->user_id !== Auth::id()) {
             return response()->json([
-                'message' => 'Você não tem permissão para editar este comentário.',
+                'message' => __('messages.no_permission_edit_comment'),
             ], 403);
         }
 
-        $validated = $request->validate([
-            'content' => 'required|string',
-            'mentions' => 'nullable|array',
-        ]);
+        $validated = $this->validateRichContent($request, 'content');
+        $content = app(HtmlContentSanitizer::class)->cleanComment($validated['content']);
 
         try {
             $comment->update([
-                'content' => $validated['content'],
+                'content' => $content,
             ]);
 
             $comment->mentions()->delete();
 
-            if (!empty($validated['mentions'])) {
-                $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all(); // Tenta usar 'name'
-                Log::info('Menções recebidas para update:', ['mentions' => $mentionedUsernames]);
+            $mentionedUsernames = $this->mentionedUsernames($validated, $content);
 
-                if (empty($mentionedUsernames)) {
-                    $mentionedUsernames = collect($validated['mentions'])->pluck('username')->all(); // Fallback para 'username'
-                    Log::info('Tentativa de fallback para username:', ['mentions' => $mentionedUsernames]);
-                }
+            if (!empty($mentionedUsernames)) {
+                Log::info('Menções recebidas para update:', ['mentions' => $mentionedUsernames]);
 
                 $mentionedUsers = User::whereIn('name', $mentionedUsernames)->orWhereIn('username', $mentionedUsernames)->get();
                 Log::info('Usuários encontrados:', ['users' => $mentionedUsers->pluck('id')->all()]);
@@ -278,12 +313,12 @@ class CommentController extends Controller
             $comment->load('user');
 
             return response()->json([
-                'message' => 'Comentário atualizado com sucesso',
+                'message' => __('messages.comment_updated'),
                 'data' => $comment,
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Erro ao atualizar comentário',
+                'message' => __('messages.comment_update_error'),
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -293,31 +328,25 @@ class CommentController extends Controller
     {
         if ($reply->user_id !== Auth::id()) {
             return response()->json([
-                'message' => 'Você não tem permissão para editar esta resposta.',
+                'message' => __('messages.no_permission_edit_reply'),
             ], 403);
         }
 
-        $validated = $request->validate([
-            'body' => 'required|string',
-            'mentions' => 'nullable|array',
-        ]);
+        $validated = $this->validateRichContent($request, 'body');
+        $body = app(HtmlContentSanitizer::class)->cleanComment($validated['body']);
 
         try {
             $reply->update([
-                'body' => $validated['body'],
+                'body' => $body,
             ]);
 
             Log::info('Removendo menções antigas da resposta', ['reply_id' => $reply->id]);
             $reply->mentions()->delete();
 
-            if (!empty($validated['mentions'])) {
-                $mentionedUsernames = collect($validated['mentions'])->pluck('name')->all(); // Tenta usar 'name'
-                Log::info('Menções recebidas para updateReply:', ['mentions' => $mentionedUsernames]);
+            $mentionedUsernames = $this->mentionedUsernames($validated, $body);
 
-                if (empty($mentionedUsernames)) {
-                    $mentionedUsernames = collect($validated['mentions'])->pluck('username')->all(); // Fallback para 'username'
-                    Log::info('Tentativa de fallback para username:', ['mentions' => $mentionedUsernames]);
-                }
+            if (!empty($mentionedUsernames)) {
+                Log::info('Menções recebidas para updateReply:', ['mentions' => $mentionedUsernames]);
 
                 $mentionedUsers = User::whereIn('name', $mentionedUsernames)->orWhereIn('username', $mentionedUsernames)->get();
                 Log::info('Usuários encontrados:', ['users' => $mentionedUsers->pluck('id')->all()]);
@@ -337,13 +366,13 @@ class CommentController extends Controller
             $reply->load('user');
 
             return response()->json([
-                'message' => 'Resposta atualizada com sucesso',
+                'message' => __('messages.reply_updated'),
                 'data' => $reply,
             ], 200);
         } catch (\Exception $e) {
-            Log::error('Erro ao atualizar resposta', ['error' => $e->getMessage()]);
+            Log::error(__('messages.reply_update_error'), ['error' => $e->getMessage()]);
             return response()->json([
-                'message' => 'Erro ao atualizar resposta',
+                'message' => __('messages.reply_update_error'),
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -353,7 +382,7 @@ class CommentController extends Controller
     {
         if ($comment->user_id !== Auth::id()) {
             return response()->json([
-                'message' => 'Você não tem permissão para excluir este comentário.',
+                'message' => __('messages.no_permission_delete_comment'),
             ], 403);
         }
 
@@ -361,11 +390,11 @@ class CommentController extends Controller
             $comment->delete();
 
             return response()->json([
-                'message' => 'Comentário excluído com sucesso',
+                'message' => __('messages.comment_deleted'),
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Erro ao excluir comentário',
+                'message' => __('messages.comment_delete_error'),
                 'error' => $e->getMessage(),
             ], 500);
         }
@@ -375,7 +404,7 @@ class CommentController extends Controller
     {
         if ($reply->user_id !== Auth::id()) {
             return response()->json([
-                'message' => 'Você não tem permissão para excluir esta resposta.',
+                'message' => __('messages.no_permission_delete_reply'),
             ], 403);
         }
 
@@ -383,11 +412,11 @@ class CommentController extends Controller
             $reply->delete();
 
             return response()->json([
-                'message' => 'Resposta excluída com sucesso',
+                'message' => __('messages.reply_deleted'),
             ], 200);
         } catch (\Exception $e) {
             return response()->json([
-                'message' => 'Erro ao excluir resposta',
+                'message' => __('messages.reply_delete_error'),
                 'error' => $e->getMessage(),
             ], 500);
         }

@@ -1,41 +1,39 @@
 <template>
     <div class="p-6 bg-gray-100 min-h-screen">
-        <!-- Formulário -->
         <form @submit.prevent="submitForm" class="bg-white p-6 rounded-lg shadow-md mb-8">
-            <h2 class="text-xl font-bold mb-4">Adicionar Palavra</h2>
+            <h2 class="text-xl font-bold mb-4">{{ $t('document.add_word') }}</h2>
 
             <div class="mb-4">
-                <label class="block text-gray-700">Título</label>
+                <label class="block text-gray-700">{{ $t('document.title') }}</label>
                 <input v-model="form.title" type="text" class="w-full border-gray-300 rounded-md" />
             </div>
 
             <div class="mb-4">
-                <label class="block text-gray-700">Subtítulo</label>
+                <label class="block text-gray-700">{{ $t('document.subtitle') }}</label>
                 <input v-model="form.subtitle" type="text" class="w-full border-gray-300 rounded-md" />
             </div>
 
             <div class="mb-4">
-                <label class="block text-gray-700">Descrição</label>
+                <label class="block text-gray-700">{{ $t('document.description') }}</label>
                 <textarea v-model="form.description" class="w-full border-gray-300 rounded-md"></textarea>
             </div>
 
             <div class="mb-4">
-                <label class="block text-gray-700">Imagem</label>
+                <label class="block text-gray-700">{{ $t('document.image') }}</label>
                 <input ref="imageInput" @change="handleImage" type="file" accept="image/*" />
             </div>
 
             <div class="mb-4">
-                <label class="block text-gray-700">Documento</label>
+                <label class="block text-gray-700">{{ $t('document.document') }}</label>
                 <input ref="documentInput" @change="handleDocument" type="file" accept=".doc,.docx" />
             </div>
 
             <button type="submit"
                 class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none">
-                Enviar
+                {{ $t('document.submit') }}
             </button>
         </form>
 
-        <!-- Lista de Palavras -->
         <div v-if="words.length > 0" class="space-y-4 card">
             <div v-for="word in words" :key="word.id" class="flex items-center bg-white p-4 rounded-lg shadow-md">
                 <div class="flex-1">
@@ -44,13 +42,12 @@
                     <h4 class="text-sm text-gray-600">{{ word.subtitle }}</h4>
                     <p class="text-sm text-gray-700">{{ word.description }}</p>
                     <a :href="`/words/${word.id}`"
-                        class="mt-4 inline-block bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">Visualizar
-                        Palavra</a>
+                        class="mt-4 inline-block bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700">{{ $t('document.view_word') }}</a>
                 </div>
             </div>
         </div>
         <div v-else class="text-center text-gray-500">
-            Nenhuma palavra encontrada.
+            {{ $t('document.no_words') }}
         </div>
     </div>
 </template>
@@ -59,9 +56,11 @@
 import axios from 'axios';
 import { ref, onMounted } from 'vue';
 import Swal from 'sweetalert2';
+import { useI18n } from 'vue-i18n';
 
 export default {
     setup() {
+        const { t } = useI18n();
         const form = ref({
             title: '',
             subtitle: '',
@@ -74,24 +73,19 @@ export default {
         const imageInput = ref(null);
         const documentInput = ref(null);
 
-
         const fetchWords = async () => {
             try {
                 const response = await axios.get('/api/words');
                 words.value = response.data;
             } catch (error) {
-                console.error(error);
-
-
                 Swal.fire({
-                    title: 'Erro!',
-                    text: error.message || 'Erro desconhecido ao carregar palavras.',
+                    title: t('common.error'),
+                    text: error.message || t('document.error_loading'),
                     icon: 'error',
-                    confirmButtonText: 'Tentar novamente',
+                    confirmButtonText: t('document.try_again'),
                 });
             }
         };
-
 
         const submitForm = async () => {
             const formData = new FormData();
@@ -102,12 +96,11 @@ export default {
             try {
                 await axios.post('/words', formData);
 
-
                 Swal.fire({
-                    title: 'Sucesso!',
-                    text: 'Palavra salva com sucesso!',
+                    title: t('common.success'),
+                    text: t('document.word_saved'),
                     icon: 'success',
-                    confirmButtonText: 'OK',
+                    confirmButtonText: t('common.ok'),
                     timer: 2000,
                     showConfirmButton: false,
                 });
@@ -115,29 +108,23 @@ export default {
                 fetchWords();
                 resetForm();
             } catch (error) {
-                console.error(error);
-
-
                 Swal.fire({
-                    title: 'Erro!',
-                    text: error.message || 'Erro desconhecido ao enviar o formulário.',
+                    title: t('common.error'),
+                    text: error.message || t('document.error_submit'),
                     icon: 'error',
-                    confirmButtonText: 'Tentar novamente',
+                    confirmButtonText: t('document.try_again'),
                 });
             }
         };
 
-        // Função para lidar com o envio da imagem
         const handleImage = (event) => {
             form.value.path_image = event.target.files[0];
         };
 
-        // Função para lidar com o envio do documento
         const handleDocument = (event) => {
             form.value.path_document = event.target.files[0];
         };
 
-        // Função para resetar o formulário e limpar os campos de imagem e documento
         const resetForm = () => {
             form.value = {
                 title: '',
@@ -147,12 +134,10 @@ export default {
                 path_document: null,
             };
 
-            // Limpar os campos de imagem e documento
             imageInput.value.value = '';
             documentInput.value.value = '';
         };
 
-        // Chamando a função para buscar as palavras ao montar o componente
         onMounted(fetchWords);
 
         return { form, words, fetchWords, submitForm, handleImage, handleDocument, resetForm, imageInput, documentInput };

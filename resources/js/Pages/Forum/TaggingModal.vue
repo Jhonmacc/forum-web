@@ -3,7 +3,7 @@
       <div class="bg-white rounded-lg shadow-lg w-full max-w-3xl max-h-[85vh] flex flex-col">
         <!-- Cabeçalho do Modal -->
         <div class="p-8 border-b border-gray-200 flex justify-between items-center">
-          <h2 class="text-2xl font-semibold text-gray-500">Escolha Tags para a sua Discussão</h2>
+          <h2 class="text-2xl font-semibold text-gray-500">{{ $t('forum.choose_tags_title') }}</h2>
           <button @click="$emit('close')" class="text-gray-500 hover:text-gray-700">
             <i class="fa-solid fa-times text-xl"></i>
           </button>
@@ -14,7 +14,7 @@
           <!-- Campo do Multiselect e Botão OK -->
           <div class="flex items-center space-x-4 mb-6">
             <multiselect v-model="selectedTagsInternal" :options="options" label="name" track-by="id" :multiple="true"
-              placeholder="Selecione as tags" :taggable="false" :show-labels="false" :searchable="false"
+              :placeholder="$t('forum.select_tags_placeholder')" :taggable="false" :show-labels="false" :searchable="false"
               class="flex-1 border border-gray-200 rounded-md min-h-[48px]">
 
               <!-- Customização do item no dropdown -->
@@ -23,7 +23,7 @@
                   <i :class="option.icon" class="text-xl mt-1" :style="{ color: option.color || '#ccc' }"></i>
                   <div class="flex-1">
                     <span class="text-gray-800 font-medium text-lg">{{ option.name }}</span>
-                    <p class="text-sm text-gray-500 mt-1">{{ option.description || 'Nenhuma descrição disponível.' }}</p>
+                    <p class="text-sm text-gray-500 mt-1">{{ option.description || $t('forum.no_description') }}</p>
                   </div>
                 </div>
               </template>

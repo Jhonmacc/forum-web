@@ -1,222 +1,304 @@
-<!-- resources/js/Pages/Forum/Index.vue -->
 <template>
-    <div class="bg-neutral-100 min-h-screen">
-        <Header />
+    <div class="relative flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-950">
+        <FloatingSidebarToggle v-model:open="isSidebarOpen" />
 
-        <!-- Faixa no topo (exibida apenas se houver um filtro ativo diferente de 'Todos') -->
-        <div v-if="activeFilter !== 'Todos' && activeTag"
-             class="w-full flex flex-col items-center justify-center text-center py-4 px-6 mb-6 text-white"
-             :style="{ backgroundColor: activeTag.color }">
-            <div class="flex items-center space-x-2">
-                <i :class="activeTag.icon" class="text-3xl text-white"></i>
-                <h2 class="text-3xl font-bold text-white">{{ activeTag.name }}</h2>
+        <!-- Sidebar -->
+        <aside
+            class="shrink-0 overflow-hidden bg-white transition-all duration-300 ease-in-out dark:bg-gray-900"
+            :class="isSidebarOpen ? 'w-[248px] border-r border-gray-200 dark:border-gray-700' : 'w-0 border-r-0 pointer-events-none'"
+            :aria-hidden="!isSidebarOpen"
+        >
+            <div class="flex h-full w-[248px] flex-col overflow-hidden transition-opacity duration-200" :class="isSidebarOpen ? 'opacity-100' : 'opacity-0'">
+            <!-- Logo -->
+            <div class="px-6 py-5 border-b border-gray-200 dark:border-gray-700">
+                <div class="flex items-center gap-2.5">
+                    <div class="w-[34px] h-[34px] rounded-[10px] bg-accent flex items-center justify-center">
+                        <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                            <path d="M2 4C2 2.9 2.9 2 4 2H14C15.1 2 16 2.9 16 4V11C16 12.1 15.1 13 14 13H10L6 16V13H4C2.9 13 2 12.1 2 11V4Z" fill="white"/>
+                        </svg>
+                    </div>
+                    <span class="font-extrabold text-base text-gray-900 dark:text-white tracking-tight">
+                        {{ $page.props.forumName || 'TechDevs' }}<span class="text-accent">.</span>
+                    </span>
+                </div>
             </div>
-            <p class="mt-2 text-md text-white">{{ activeTag.description || 'Nenhuma descrição disponível.' }}</p>
-        </div>
 
-        <!-- Conteúdo Principal -->
-        <div class="flex flex-1 pl-4 pr-4 md:pl-40 md:pr-40">
-            <!-- Menu Lateral -->
-            <div class="w-full md:w-1/4 container p-6 list-none space-y-2">
+            <!-- New Post Button -->
+            <div class="px-4 pt-5 pb-4">
                 <button @click="openCreatePostModal"
-                        class="w-full py-2 px-4 mb-4 bg-yellow-400 text-white rounded-3xl hover:bg-yellow-500 shadow-md hover:-translate-y-1 transition-transform font-bold">
-                    + Nova Discussão
+                        class="w-full py-3 rounded-xl border-none bg-accent text-white font-bold text-sm flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(245,184,0,0.3)] hover:-translate-y-0.5 hover:shadow-[0_6px_24px_rgba(245,184,0,0.4)] transition-all">
+                    <span class="text-lg leading-none">+</span> {{ $t('forum.new_discussion') }}
                 </button>
-                <h2 class="text-xl font-bold text-gray-700 mb-4">Filtro por Grupos</h2>
-                <li @click="filterPosts('Todos')"
-                    :class="{ 'font-bold': activeFilter === 'Todos', 'text-brown-light': activeFilter !== 'Todos' }"
-                    class="w-full py-2 px-4 mb-4 font-medium cursor-pointer hover:text-brown-lighter hover:-translate-y-1 transition-transform rounded-lg flex items-center space-x-2">
-                    <i class="fa-solid fa-list"
-                       :class="{ 'text-yellow-500': activeFilter === 'Todos', 'text-gray-500': activeFilter !== 'Todos' }"></i>
-                    <span>Todas as Discussões</span>
-                </li>
-                <li @click="filterPosts('Suporte')"
-                    :class="{ 'text-yellow-900 font-bold': activeFilter === 'Suporte', 'text-brown-light': activeFilter !== 'Suporte' }"
-                    :style="activeFilter === 'Suporte' && activeTag ? { color: activeTag.color } : {}"
-                    class="w-full py-2 px-4 mb-4 font-medium cursor-pointer hover:text-brown-lighter hover:-translate-y-1 transition-transform rounded-lg flex items-center space-x-2">
-                    <i v-if="getTagByName('Suporte')" :class="getTagByName('Suporte').icon" class="text-gray-500"></i>
-                    <span>Suporte</span>
-                </li>
-                <li @click="filterPosts('Ideias')"
-                    :class="{ 'text-yellow-900 font-bold': activeFilter === 'Ideias', 'text-brown-light': activeFilter !== 'Ideias' }"
-                    :style="activeFilter === 'Ideias' && activeTag ? { color: activeTag.color } : {}"
-                    class="w-full py-2 px-4 mb-4 font-medium cursor-pointer hover:text-brown-lighter hover:-translate-y-1 transition-transform rounded-lg flex items-center space-x-2">
-                    <i v-if="getTagByName('Ideias')" :class="getTagByName('Ideias').icon" class="text-gray-500"></i>
-                    <span>Ideias</span>
-                </li>
-                <li @click="filterPosts('Artigo')"
-                    :class="{ 'text-yellow-900 font-bold': activeFilter === 'Artigo', 'text-brown-light': activeFilter !== 'Artigo' }"
-                    :style="activeFilter === 'Artigo' && activeTag ? { color: activeTag.color } : {}"
-                    class="w-full py-2 px-4 mb-4 font-medium cursor-pointer hover:text-brown-lighter hover:-translate-y-1 transition-transform rounded-lg flex items-center space-x-2">
-                    <i v-if="getTagByName('Artigo')" :class="getTagByName('Artigo').icon" class="text-gray-500"></i>
-                    <span>Artigos</span>
-                </li>
-                <li @click="filterPosts('Bug')"
-                    :class="{ 'text-yellow-900 font-bold': activeFilter === 'Bug', 'text-brown-light': activeFilter !== 'Bug' }"
-                    :style="activeFilter === 'Bug' && activeTag ? { color: activeTag.color } : {}"
-                    class="w-full py-2 px-4 mb-4 font-medium cursor-pointer hover:text-brown-lighter hover:-translate-y-1 transition-transform rounded-lg flex items-center space-x-2">
-                    <i v-if="getTagByName('Bug')" :class="getTagByName('Bug').icon" class="text-gray-500"></i>
-                    <span>Bugs</span>
-                </li>
             </div>
 
-            <!-- Timeline -->
-            <div class="flex-1 p-12">
-                <!-- Controles de Filtragem e Atualização -->
-                <div class="flex justify-between items-center mb-6">
-                    <!-- Dropdown de Filtragem -->
-                    <div class="relative">
-                        <button @click="toggleSortDropdown"
-                                class="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
-                            <span>{{ sortOption }}</span>
-                            <i class="fa-solid fa-chevron-down"></i>
-                        </button>
-                        <ul v-if="showSortDropdown"
-                            class="absolute mt-2 w-48 bg-white rounded-lg shadow-lg z-10">
-                            <li @click="sortPosts('Últimas')"
-                                class="px-4 py-2 text-gray-700 hover:bg-gray-100 cursor-pointer flex items-center space-x-2">
-                                <i v-if="sortOption === 'Últimas'" class="fa-solid fa-check text-green-500"></i>
-                                <span>Últimas</span>
-                            </li>
-                            <li @click="sortPosts('Mais novo')"
-                                class="px-4 py-2 text-gray-700 hover:bg-gray-100 cursor-pointer flex items-center space-x-2">
-                                <i v-if="sortOption === 'Mais novo'" class="fa-solid fa-check text-green-500"></i>
-                                <span>Mais novo</span>
-                            </li>
-                            <li @click="sortPosts('Mais velho')"
-                                class="px-4 py-2 text-gray-700 hover:bg-gray-100 cursor-pointer flex items-center space-x-2">
-                                <i v-if="sortOption === 'Mais velho'" class="fa-solid fa-check text-green-500"></i>
-                                <span>Mais velho</span>
-                            </li>
-                        </ul>
+            <!-- Nav -->
+            <nav class="flex-1 overflow-auto px-2.5">
+                <p class="text-[10.5px] font-extrabold tracking-[0.1em] text-gray-400 dark:text-gray-500 px-3 py-2 uppercase">{{ $t('forum.navigate') }}</p>
+                <button v-for="item in navItems" :key="item.id"
+                        @click="setActiveTab(item.id)"
+                        class="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-[10px] border-none cursor-pointer text-sm mb-0.5 transition-all text-left"
+                        :class="activeTab === item.id
+                            ? 'bg-accent/15 text-accent font-bold'
+                            : 'bg-transparent text-gray-500 dark:text-gray-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800'">
+                    <component :is="item.icon" :active="activeTab === item.id" />
+                    {{ item.label }}
+                </button>
+
+                <div class="h-px bg-gray-200 dark:bg-gray-700 mx-3 my-4"></div>
+
+                <p class="text-[10.5px] font-extrabold tracking-[0.1em] text-gray-400 dark:text-gray-500 px-3 py-2 uppercase">{{ $t('forum.categories') }}</p>
+                <button v-for="cat in categories" :key="cat.id"
+                        @click="filterPosts(cat.id)"
+                        class="w-full flex items-center gap-2.5 px-3.5 py-2 rounded-[10px] border-none cursor-pointer text-[13.5px] mb-0.5 transition-all text-left"
+                        :class="activeCat === cat.id
+                            ? 'bg-accent/15 text-accent font-bold'
+                            : 'bg-transparent text-gray-500 dark:text-gray-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800'">
+                    <span class="text-[15px] w-[22px] text-center">{{ cat.icon }}</span>
+                    {{ cat.label }}
+                    <span class="ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-full"
+                          :class="activeCat === cat.id
+                              ? 'bg-accent/25 text-accent'
+                              : 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'">
+                        {{ getCategoryCount(cat.id) }}
+                    </span>
+                </button>
+            </nav>
+
+            <!-- User -->
+            <div class="px-4 py-3.5 border-t border-gray-200 dark:border-gray-700 flex items-center gap-2.5">
+                <div class="w-[34px] h-[34px] rounded-full overflow-hidden shrink-0">
+                    <img class="w-full h-full object-cover" :src="$page.props.auth.user.profile_photo_url" :alt="$page.props.auth.user.name">
+                </div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-[13px] font-bold text-gray-900 dark:text-white truncate">{{ $page.props.auth.user.name }}</div>
+                </div>
+                <a :href="route('profile.show')" class="text-gray-400 hover:text-gray-700 dark:hover:text-white transition-colors text-lg">⚙</a>
+            </div>
+            </div>
+        </aside>
+
+        <!-- Main -->
+        <div class="flex-1 flex flex-col overflow-hidden">
+            <Header @search="onSearch" />
+
+            <!-- Content -->
+            <main class="flex-1 overflow-auto p-7">
+                <!-- Page header -->
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h1 class="text-[22px] font-extrabold tracking-tight mb-0.5 text-gray-900 dark:text-white">
+                            {{ currentCategoryLabel }}
+                        </h1>
+                        <p class="text-[13px] text-gray-500 dark:text-gray-400">
+                            {{ filteredPostsCount === 1 ? $t('forum.discussions_one', { count: filteredPostsCount }) : $t('forum.discussions_many', { count: filteredPostsCount }) }}{{ searchTerm ? ' ' + $t('forum.for_search', { term: searchTerm }) : '' }}
+                        </p>
                     </div>
 
-                    <!-- Botão de Atualização -->
-                    <button @click="refreshPostsWithTransition"
-                            class="flex items-center justify-center w-10 h-10 bg-gray-200 rounded-full hover:bg-gray-300 transition-colors">
-                        <i v-if="!isRefreshing" class="fa-solid fa-rotate text-gray-700"></i>
-                        <i v-else class="fa-solid fa-spinner fa-spin text-gray-700"></i>
-                    </button>
+                    <!-- Sort tabs -->
+                    <div class="flex gap-1.5 bg-gray-200/70 dark:bg-gray-800 rounded-xl p-1">
+                        <button v-for="s in sortOptions" :key="s.value"
+                                @click="sortPosts(s.value)"
+                                class="px-3.5 py-[7px] rounded-[9px] border-none cursor-pointer text-[13px] transition-all"
+                                :class="sortOption === s.value
+                                    ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white font-bold shadow-sm'
+                                    : 'bg-transparent text-gray-500 dark:text-gray-400 font-medium hover:text-gray-700 dark:hover:text-gray-200'">
+                            {{ s.label }}
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Spinner durante o carregamento -->
+                <!-- Loading -->
                 <div v-if="isLoading && !loadedPosts.length" class="flex justify-center items-center h-64">
-                    <svg class="animate-spin h-10 w-10 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <svg class="animate-spin h-10 w-10 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                         <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                     </svg>
                 </div>
 
-                <!-- Lista de Posts com transição -->
+                <!-- Empty state -->
+                <div v-else-if="!loadedPosts.length && !isLoading" class="text-center py-20">
+                    <div class="text-5xl mb-4">💬</div>
+                    <div class="font-bold text-lg mb-2 text-gray-900 dark:text-white">{{ $t('forum.no_discussion_found') }}</div>
+                    <div class="text-sm mb-6 text-gray-500 dark:text-gray-400">
+                        {{ searchTerm ? $t('forum.no_results_for', { term: searchTerm }) : $t('forum.be_first') }}
+                    </div>
+                    <button @click="openCreatePostModal"
+                            class="px-7 py-3 rounded-xl border-none bg-accent text-white font-bold text-sm cursor-pointer shadow-[0_4px_16px_rgba(245,184,0,0.35)]">
+                        + {{ $t('forum.new_discussion') }}
+                    </button>
+                </div>
+
+                <!-- Posts -->
                 <transition name="fade" mode="out-in">
-                    <ul v-if="!isLoading || loadedPosts.length" key="posts-list" role="feed" class="post-list">
-                        <li v-for="post in loadedPosts" :key="post.id" @click="router.get(`/posts/${post.id}/edit`)"
-                            class="cursor-pointer mb-6 py-4 px-6 hover:bg-yellow-50 rounded-3xl transition-shadow">
-                            <div class="container mx-auto">
-                                <!-- Título e Tags/Comentários/Likes -->
-                                <div class="flex justify-between items-start mb-4">
-                                    <h2 class="text-xl font-semibold text-gray-800">
-                                        {{ post.title.length > 50 ? post.title.slice(0, 50) + '...' : post.title }}
-                                    </h2>
-                                    <div class="flex items-center space-x-2">
-                                        <!-- Tags -->
-                                        <span v-for="tag in post.tags" :key="tag.id" :style="{ backgroundColor: tag.color }"
-                                              class="inline-block px-2 py-1 text-sm text-white rounded font-bold tag-shadow">
-                                            <i :class="tag.icon" class="text-sm text-white font-bold"></i>
-                                            {{ tag.name }}
-                                        </span>
-                                        <!-- Contagem de Comentários -->
-                                        <div class="flex items-center">
-                                            <i class="fa-solid fa-comment text-gray-400"></i>
-                                            <span class="text-sm text-gray-400 pl-1">{{ post.comments_count || 0 }}</span>
-                                        </div>
-                                        <!-- Contagem de Likes -->
-                                        <div class="flex items-center">
-                                            <i class="fa-solid fa-heart text-gray-400"></i>
-                                            <span class="text-sm text-gray-400 pl-1">{{ post.likes_count || 0 }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                                <!-- Descrição -->
-                                <p class="text-sm text-gray-600 description-preview mb-4" v-html="getDescriptionPreview(post.description)"></p>
-                                <!-- Autor -->
-                                <p class="text-sm text-gray-500">
-                                    Autor: {{ post.user.name }} {{ formatRelativeTime(post.created_at) }}
-                                </p>
-                            </div>
-                        </li>
-                        <!-- Mensagem quando não há posts -->
-                        <li v-if="!loadedPosts.length" class="text-center text-gray-500">
-                            Nenhum post encontrado para este filtro.
-                        </li>
-                    </ul>
+                    <div v-if="loadedPosts.length" key="posts" class="flex flex-col gap-3">
+                        <PostCard
+                            v-for="post in loadedPosts"
+                            :key="post.id"
+                            :post="post"
+                            :isAuthenticated="true"
+                            @vote="toggleVote"
+                            @click="router.get(`/posts/${post.id}/edit`)"
+                        />
+                    </div>
                 </transition>
 
-                <!-- Botão "Carregar Mais" -->
+                <!-- Load more -->
                 <div v-if="hasMorePosts" class="flex justify-center mt-6">
                     <button @click="loadMorePosts"
-                            class="flex items-center space-x-2 px-6 py-2 bg-yellow-400 text-white rounded-3xl hover:bg-yellow-500 transition-colors">
-                        <span class="text-white font-bold">Carregar Mais</span>
+                            class="flex items-center gap-2 px-6 py-2.5 bg-accent text-white rounded-xl font-bold text-sm hover:bg-accent-dark transition-colors shadow-[0_4px_16px_rgba(245,184,0,0.35)]">
+                        <span>{{ $t('forum.load_more') }}</span>
                         <i v-if="isLoading" class="fa-solid fa-spinner fa-spin"></i>
                     </button>
                 </div>
-            </div>
+            </main>
         </div>
-        <!-- Modal de Criação de Post -->
-        <create-post-modal v-if="showCreatePostModal" @close="closeCreatePostModal" @success="refreshPosts" />
+
+        <!-- Create Post Modal -->
+        <CreatePostModal v-if="showCreatePostModal" @close="closeCreatePostModal" @success="refreshPosts" />
     </div>
 </template>
 
 <script setup>
-import { router } from '@inertiajs/vue3';
+import { router, usePage } from '@inertiajs/vue3';
 import Header from '@/Components/Header.vue';
+import PostCard from '@/Components/PostCard.vue';
+import FloatingSidebarToggle from '@/Components/FloatingSidebarToggle.vue';
 import CreatePostModal from './CreatePostModal.vue';
+import axios from 'axios';
 import moment from 'moment';
 import 'moment/dist/locale/pt-br';
-import { ref, computed } from 'vue';
+import { ref, computed, h } from 'vue';
+import { useI18n } from 'vue-i18n';
 
-// Props
+const { t, locale } = useI18n();
+const page = usePage();
+
 const props = defineProps({
     posts: Object,
     filters: Object,
     tags: Array,
+    categoryCounts: Object,
 });
 
-// Data
-const showCreatePostModal = ref(false);
-const activeMenu = ref('forum');
-const activeFilter = ref(props.filters?.tag || 'Todos');
-const sortOption = ref(props.filters?.sort || 'Últimas');
-const currentPage = ref(1);
-const perPage = ref(5); // Número fixo de posts por "página"
-const isLoading = ref(false);
-const showSortDropdown = ref(false);
-const isRefreshing = ref(false);
-const transitionTrigger = ref(0);
-const loadedPosts = ref([]); // Lista acumulativa de posts
-const totalPosts = ref(props.posts?.total || 0); // Total de posts disponíveis
-
-// Computed
-const activeTag = computed(() => {
-    if (activeFilter.value === 'Todos' || !props.tags) return null;
-    return props.tags.find(tag => tag.name === activeFilter.value) || null;
-});
-
-const hasMorePosts = computed(() => {
-    return loadedPosts.value.length < totalPosts.value;
-});
-
-// Inicializar os posts carregados
-loadedPosts.value = props.posts?.data || [];
-
-// Methods
-const getTagByName = (filterName) => {
-    if (!props.tags) return null;
-    return props.tags.find(tag => tag.name === filterName) || null;
+const DashIcon = {
+    props: ['active'],
+    render() {
+        const c = this.active ? '#F5B800' : 'currentColor';
+        return h('svg', { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', class: this.active ? '' : 'text-gray-400 dark:text-gray-500' }, [
+            h('rect', { x: 1, y: 1, width: 6, height: 6, rx: 2, fill: c }),
+            h('rect', { x: 9, y: 1, width: 6, height: 6, rx: 2, fill: c, 'fill-opacity': '0.5' }),
+            h('rect', { x: 1, y: 9, width: 6, height: 6, rx: 2, fill: c, 'fill-opacity': '0.5' }),
+            h('rect', { x: 9, y: 9, width: 6, height: 6, rx: 2, fill: c }),
+        ]);
+    }
+};
+const ForumIcon = {
+    props: ['active'],
+    render() {
+        const c = this.active ? '#F5B800' : 'currentColor';
+        return h('svg', { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', class: this.active ? '' : 'text-gray-400 dark:text-gray-500' }, [
+            h('path', { d: 'M1 3C1 2.4 1.4 2 2 2H11C11.6 2 12 2.4 12 3V8C12 8.6 11.6 9 11 9H7L4 12V9H2C1.4 9 1 8.6 1 8V3Z', fill: c }),
+            h('path', { d: 'M13 5H14C14.6 5 15 5.4 15 6V10C15 10.6 14.6 11 14 11H13V13L10 11H8', stroke: c, 'stroke-width': '1.4', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' }),
+        ]);
+    }
+};
+const UserIcon = {
+    props: ['active'],
+    render() {
+        const c = this.active ? '#F5B800' : 'currentColor';
+        return h('svg', { width: 16, height: 16, viewBox: '0 0 16 16', fill: 'none', class: this.active ? '' : 'text-gray-400 dark:text-gray-500' }, [
+            h('circle', { cx: 8, cy: 5, r: 3, fill: c }),
+            h('path', { d: 'M2 14C2 11.2 4.7 9 8 9C11.3 9 14 11.2 14 14', stroke: c, 'stroke-width': '1.5', 'stroke-linecap': 'round' }),
+        ]);
+    }
 };
 
-const setActiveMenu = (menu) => {
-    activeMenu.value = menu;
+const navItems = computed(() => [
+    ...(page.props.auth.user?.is_admin ? [{ id: 'dashboard', label: t('forum.dashboard'), icon: DashIcon }] : []),
+    { id: 'forum', label: t('forum.forum'), icon: ForumIcon },
+    ...(page.props.auth.user?.is_admin ? [{ id: 'tags', label: t('tags.manage_tags'), icon: ForumIcon }] : []),
+    { id: 'meus', label: t('forum.my_posts'), icon: UserIcon },
+]);
+
+const categories = computed(() => [
+    { id: 'Todos', label: t('forum.all_discussions'), icon: '⊞' },
+    { id: 'Suporte', label: t('forum.support'), icon: '💬' },
+    { id: 'Ideias', label: t('forum.ideas'), icon: '💡' },
+    { id: 'Artigo', label: t('forum.articles'), icon: '📄' },
+    { id: 'Bug', label: t('forum.bugs'), icon: '🐛' },
+]);
+
+const sortOptions = computed(() => [
+    { value: 'hot', label: t('forum.hot') },
+    { value: 'latest', label: t('forum.recent') },
+    { value: 'newest', label: t('forum.popular') },
+    { value: 'oldest', label: t('forum.no_reply') },
+    { value: 'most_voted', label: t('forum.most_voted') },
+]);
+
+const CAT_COLORS = {
+    'Suporte':  { bg: '#e0eafc', text: '#2d5aa0' },
+    'Ideias':   { bg: '#dcf5e0', text: '#1d7a3a' },
+    'Artigo':   { bg: '#ece0fc', text: '#5a2d9c' },
+    'Artigos':  { bg: '#ece0fc', text: '#5a2d9c' },
+    'Bug':      { bg: '#fce0df', text: '#a03030' },
+    'Bugs':     { bg: '#fce0df', text: '#a03030' },
+};
+
+const AVATAR_HUES = ['#4a90d9', '#3dab5e', '#d4a028', '#8b5ec8', '#c84d7a', '#d05a3a'];
+
+const showCreatePostModal = ref(false);
+const isSidebarOpen = ref(true);
+const activeTab = ref('forum');
+const activeCat = ref(props.filters?.tag || 'Todos');
+const sortOption = ref(props.filters?.sort || 'latest');
+const currentPage = ref(1);
+const perPage = ref(5);
+const isLoading = ref(false);
+const isRefreshing = ref(false);
+const loadedPosts = ref(props.posts?.data || []);
+const totalPosts = ref(props.posts?.total || 0);
+const searchTerm = ref('');
+
+const hasMorePosts = computed(() => loadedPosts.value.length < totalPosts.value);
+const filteredPostsCount = computed(() => loadedPosts.value.length);
+const currentCategoryLabel = computed(() => {
+    const cat = categories.value.find(c => c.id === activeCat.value);
+    return cat ? cat.label : t('forum.all_discussions');
+});
+
+const getCategoryCount = (catId) => {
+    if (props.categoryCounts) {
+        return props.categoryCounts[catId] ?? 0;
+    }
+    if (catId === 'Todos') return totalPosts.value;
+    return 0;
+};
+
+const getCatBg = (name) => CAT_COLORS[name]?.bg || '#e8e7e3';
+const getCatText = (name) => CAT_COLORS[name]?.text || '#6b6b80';
+const getAvatarColor = (id) => AVATAR_HUES[(id || 0) % AVATAR_HUES.length];
+
+const getInitials = (name) => {
+    if (!name) return '?';
+    const parts = name.split(' ');
+    return parts.length >= 2
+        ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+        : name.slice(0, 2).toUpperCase();
+};
+
+const setActiveTab = (tab) => {
+    activeTab.value = tab;
+    if (tab === 'dashboard') {
+        router.get('/dashboard');
+    } else if (tab === 'forum') {
+        router.get('/forum');
+    } else if (tab === 'tags') {
+        router.get('/forum/tags');
+    } else if (tab === 'meus') {
+        const userId = page.props.auth.user.id;
+        router.visit(`/users/${userId}`);
+    }
 };
 
 const fetchPosts = (reset = false) => {
@@ -226,16 +308,15 @@ const fetchPosts = (reset = false) => {
     }
 
     isLoading.value = true;
-    router.get(`/forum`, {
-        tag: activeFilter.value,
-        sort: sortOption.value.toLowerCase(),
+    router.get('/forum', {
+        tag: activeCat.value,
+        sort: sortOption.value,
         page: currentPage.value,
         per_page: perPage.value,
     }, {
         preserveState: true,
         preserveScroll: true,
         onSuccess: (page) => {
-            console.log('Requisição concluída com sucesso:', page);
             const newPosts = page.props.posts.data;
             totalPosts.value = page.props.posts.total;
             if (reset) {
@@ -244,169 +325,93 @@ const fetchPosts = (reset = false) => {
                 loadedPosts.value = [...loadedPosts.value, ...newPosts];
             }
             isLoading.value = false;
-            isRefreshing.value = false; // Garantir que o spinner pare
-            transitionTrigger.value++;
+            isRefreshing.value = false;
         },
-        onError: (error) => {
-            console.error('Erro ao carregar posts:', error);
+        onError: () => {
             isLoading.value = false;
-            isRefreshing.value = false; // Garantir que o spinner pare em caso de erro
+            isRefreshing.value = false;
         },
         onFinish: () => {
-            console.log('Requisição finalizada');
             isLoading.value = false;
-            isRefreshing.value = false; // Garantir que o spinner pare
+            isRefreshing.value = false;
         },
     });
 };
 
 const filterPosts = (tag) => {
-    activeFilter.value = tag;
-    fetchPosts(true); // Resetar a lista ao mudar o filtro
-};
-
-const toggleSortDropdown = () => {
-    showSortDropdown.value = !showSortDropdown.value;
+    activeCat.value = tag;
+    fetchPosts(true);
 };
 
 const sortPosts = (option) => {
     sortOption.value = option;
-    showSortDropdown.value = false;
-    fetchPosts(true); // Resetar a lista ao mudar a ordenação
+    fetchPosts(true);
 };
 
 const loadMorePosts = () => {
     currentPage.value += 1;
-    fetchPosts(); // Carregar mais posts sem resetar a lista
+    fetchPosts();
 };
 
-const refreshPostsWithTransition = () => {
-    if (isRefreshing.value) return; // Evitar múltiplas requisições simultâneas
-    isRefreshing.value = true;
-    fetchPosts(true); // Resetar a lista ao atualizar
+const onSearch = (query) => {
+    searchTerm.value = query;
 };
 
 const openCreatePostModal = () => {
     showCreatePostModal.value = true;
 };
 
-const refreshPosts = () => {
-    router.get('/forum');
-};
-
 const closeCreatePostModal = () => {
     showCreatePostModal.value = false;
 };
 
+const refreshPosts = () => {
+    router.get('/forum', {
+        tag: activeCat.value,
+        sort: sortOption.value,
+    }, {
+        preserveState: false,
+        preserveScroll: true,
+        onSuccess: (page) => {
+            loadedPosts.value = page.props.posts.data;
+            totalPosts.value = page.props.posts.total;
+            currentPage.value = 1;
+        },
+    });
+};
+
 const formatRelativeTime = (date) => {
-    return moment(date).fromNow();
+    return moment(date).locale(locale.value === 'pt-BR' ? 'pt-br' : 'en').fromNow();
 };
 
 const getDescriptionPreview = (description) => {
     const plainText = description.replace(/<[^>]+>/g, '');
-    return plainText.length > 100 ? plainText.slice(0, 100) + '...' : plainText;
+    return plainText.length > 150 ? plainText.slice(0, 150) + '...' : plainText;
+};
+
+const toggleVote = async (post) => {
+    const previousLiked = Boolean(post.liked_by_current_user);
+    const previousCount = post.likes_count || 0;
+
+    post.liked_by_current_user = !previousLiked;
+    post.likes_count = Math.max(0, previousCount + (previousLiked ? -1 : 1));
+
+    try {
+        const response = await axios.post(`/posts/${post.id}/like`);
+        post.liked_by_current_user = response.data.liked;
+        post.likes_count = response.data.likes_count;
+    } catch (error) {
+        post.liked_by_current_user = previousLiked;
+        post.likes_count = previousCount;
+    }
 };
 </script>
 
 <style scoped>
-/* Estilização existente */
-.description-preview {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    line-height: 1.5em;
-    max-height: 3em;
-}
-
-/* Estilização responsiva */
-@media (max-width: 768px) {
-    .flex-1 {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
-
-    .w-1 {
-        width: 100%;
-        margin-bottom: 1rem;
-    }
-
-    .flex {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .flex.items-start {
-        flex-direction: column;
-        align-items: flex-start;
-    }
-
-    .space-x-2 > * + * {
-        margin-left: 0;
-        margin-top: 0.5rem;
-    }
-}
-
-/* Definir a cor marrom claro para os filtros */
-.text-brown-light {
-    color: #8B4513;
-}
-
-/* Cor mais clara para o hover */
-.text-brown-lighter {
-    color: #A0522D;
-}
-
-/* Estilo para o filtro ativo */
-.bg-yellow-500 {
-    background-color: #f59e0b;
-}
-
-/* Ajuste para o texto branco no filtro ativo (apenas para 'Todos') */
-.bg-yellow-500.text-white {
-    color: #ffffff;
-}
-
-/* Estilo para a faixa no topo */
-.faixa-topo {
-    background-color: #1e90ff;
-    color: #ffffff;
-    padding: 1rem 1.5rem;
-    margin-bottom: 1.5rem;
-}
-
-/* Estilo para o ícone do filtro */
-li i {
-    font-size: 1rem;
-    transition: color 0.3s ease;
-}
-
-/* Ajuste para o ícone quando o filtro está ativo */
-li.text-yellow-900 i {
-    color: inherit;
-}
-
-/* Ajuste para o ícone de 'Todas as Categorias' quando ativo */
-li.text-black i {
-    color: #000000;
-}
-
-/* Estilo para o sombreamento das tags */
-.tag-shadow {
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6);
-}
-
-/* Transição para a lista de posts */
 .fade-enter-active, .fade-leave-active {
-    transition: opacity 0.5s ease;
+    transition: opacity 0.3s ease;
 }
-
 .fade-enter-from, .fade-leave-to {
     opacity: 0;
-}
-
-.post-list {
-    min-height: 100px;
 }
 </style>

@@ -28,8 +28,14 @@ class MentionedInComment extends Notification implements ShouldQueue
 
     public function toDatabase($notifiable)
     {
+        $locale = $notifiable->locale ?? config('app.locale');
+        app()->setLocale($locale);
+
         return [
-            'message' => "<strong>@{$this->mentionedBy}</strong> mencionou você em um comentário no post: '{$this->post->title}'",
+            'message' => __('notifications.mentioned_in_comment', [
+                'name' => $this->mentionedBy,
+                'title' => $this->post->title,
+            ]),
             'post_id' => $this->post->id,
             'comment_id' => $this->comment->id,
         ];

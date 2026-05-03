@@ -9,7 +9,9 @@ use Illuminate\Http\Request;
 
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Validator;
 use App\Notifications\PostLikedNotification;
+use App\Services\HtmlContentSanitizer;
 
 class PostsController extends Controller
 {
@@ -109,15 +111,11 @@ public function uploadImage(Request $request)
             return response()->json(['message' => 'Usuário não autenticado'], 401);
         }
 
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'description' => 'required|string',
-            'tags' => 'required|array',
-            'tags.*' => 'exists:tags,id',
-        ]);
+        $validated = $this->validatePostPayload($request);
+        $sanitizer = app(HtmlContentSanitizer::class);
 
         // Extrair a primeira imagem da descrição (se houver)
-        $description = $validated['description'];
+        $description = $sanitizer->cleanPost($validated['description']);
         $imagePath = null;
 
         // Carregar o HTML da descrição em um DOMDocument
@@ -130,7 +128,7 @@ public function uploadImage(Request $request)
             $src = $image->getAttribute('src');
 
             // Verificamos se o src é uma URL válida (não Base64, já que o upload foi feito via uploadImage)
-            if (filter_var($src, FILTER_VALIDATE_URL)) {
+            if (filter_var($src, FILTER_VALIDATE_URL) || str_starts_with($src, '/storage/')) {
                 $imagePath = $src; // Armazenamos a URL da imagem
             }
         }
@@ -149,6 +147,33 @@ public function uploadImage(Request $request)
         }
 
         return redirect('/forum')->with('message', 'Post criado com sucesso!');
+    }
+
+    private function validatePostPayload(Request $request): array
+    {
+        $titleLimit = config('forum.limits.post_title');
+        $descriptionHtmlLimit = config('forum.limits.post_description_html');
+        $descriptionTextLimit = config('forum.limits.post_description_text');
+
+        $validator = Validator::make($request->all(), [
+            'title' => ['required', 'string', "max:{$titleLimit}"],
+            'description' => ['required', 'string', "max:{$descriptionHtmlLimit}"],
+            'tags' => 'required|array',
+            'tags.*' => 'exists:tags,id',
+        ]);
+
+        $validator->after(function ($validator) use ($request, $descriptionTextLimit) {
+            $plainText = trim(html_entity_decode(strip_tags((string) $request->input('description')), ENT_QUOTES, 'UTF-8'));
+
+            if (mb_strlen($plainText) > $descriptionTextLimit) {
+                $validator->errors()->add('description', __('validation.max.string', [
+                    'attribute' => __('validation.attributes.description'),
+                    'max' => $descriptionTextLimit,
+                ]));
+            }
+        });
+
+        return $validator->validate();
     }
 
     public function show($postId)
@@ -178,6 +203,41 @@ public function uploadImage(Request $request)
         ])
         ->withCount(['comments', 'likes'])
         ->findOrFail($postId);
+
+        $currentUserId = Auth::id();
+        $sanitizer = app(HtmlContentSanitizer::class);
+        $post->description = $sanitizer->cleanPost($post->description);
+        $post->liked_by_current_user = $currentUserId
+            ? $post->likes->contains('user_id', $currentUserId)
+            : false;
+
+        $markReply = function ($reply) use (&$markReply, $currentUserId, $sanitizer) {
+            $reply->body = $sanitizer->cleanComment($reply->body);
+            $reply->liked_by_current_user = $currentUserId
+                ? $reply->likes->contains('user_id', $currentUserId)
+                : false;
+            $reply->likes_count = $reply->likes->count();
+            $reply->replies_count = $reply->children ? $reply->children->count() : 0;
+
+            if ($reply->children) {
+                $reply->children->each($markReply);
+            }
+
+            return $reply;
+        };
+
+        $post->comments->each(function ($comment) use ($currentUserId, $markReply, $sanitizer) {
+            $comment->content = $sanitizer->cleanComment($comment->content);
+            $comment->liked_by_current_user = $currentUserId
+                ? $comment->likes->contains('user_id', $currentUserId)
+                : false;
+            $comment->likes_count = $comment->likes->count();
+            $comment->replies_count = $comment->replies ? $comment->replies->count() : 0;
+
+            if ($comment->replies) {
+                $comment->replies->each($markReply);
+            }
+        });
 
         // Verifica se a requisição é AJAX/JSON
         if (request()->wantsJson()) {
@@ -227,17 +287,17 @@ public function uploadImage(Request $request)
     // Atualizar o post:
     public function update(Request $request, $id)
 {
-    $validated = $request->validate([
-        'title' => 'required|string|max:255',
-        'description' => 'required|string',
-        'tags' => 'required|array',
-        'tags.*' => 'exists:tags,id',
-    ]);
+    $validated = $this->validatePostPayload($request);
+    $sanitizer = app(HtmlContentSanitizer::class);
 
     $post = Post::findOrFail($id);
 
+    if ($post->user_id !== Auth::id()) {
+        return response()->json(['message' => __('messages.no_permission_edit_post')], 403);
+    }
+
     // Extrair a primeira imagem da descrição (se houver)
-    $description = $validated['description'];
+    $description = $sanitizer->cleanPost($validated['description']);
     $imagePath = $post->images; // Manter a imagem existente, se houver
 
     // Carregar o HTML da descrição em um DOMDocument
@@ -250,7 +310,7 @@ public function uploadImage(Request $request)
         $src = $image->getAttribute('src');
 
         // Verifica se o src é uma URL válida
-        if (filter_var($src, FILTER_VALIDATE_URL)) {
+        if (filter_var($src, FILTER_VALIDATE_URL) || str_starts_with($src, '/storage/')) {
             $imagePath = $src;
         }
     } else {
@@ -273,6 +333,11 @@ public function uploadImage(Request $request)
     public function destroy($id)
     {
         $post = Post::findOrFail($id);
+
+        if ($post->user_id !== Auth::id()) {
+            return response()->json(['message' => __('messages.no_permission_delete_post')], 403);
+        }
+
         $post->delete();
         return response()->json($post, 200);
     }

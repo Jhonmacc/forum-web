@@ -26,8 +26,14 @@ class PostLikedNotification extends Notification implements ShouldQueue
 
     public function toDatabase($notifiable)
     {
+        $locale = $notifiable->locale ?? config('app.locale');
+        app()->setLocale($locale);
+
         return [
-            'message' => "@{$this->likedBy->name} curtiu seu post '{$this->post->title}'.",
+            'message' => __('notifications.post_liked', [
+                'name' => $this->likedBy->name,
+                'title' => $this->post->title,
+            ]),
             'post_id' => $this->post->id,
             'type' => 'post',
         ];

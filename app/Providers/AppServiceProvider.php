@@ -12,8 +12,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        Carbon::setLocale('pt_BR');  // Defina a localidade para o Brasil
-        date_default_timezone_set('America/Sao_Paulo');  // Configura o fuso horário para o Brasil
+        date_default_timezone_set('America/Sao_Paulo');
     }
 
     /**

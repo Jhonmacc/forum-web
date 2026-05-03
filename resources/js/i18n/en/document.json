@@ -1,0 +1,15 @@
+{
+    "add_word": "Add Word",
+    "title": "Title",
+    "subtitle": "Subtitle",
+    "description": "Description",
+    "image": "Image",
+    "document": "Document",
+    "submit": "Submit",
+    "view_word": "View Word",
+    "no_words": "No words found.",
+    "word_saved": "Word saved successfully!",
+    "error_loading": "Unknown error loading words.",
+    "error_submit": "Unknown error submitting the form.",
+    "try_again": "Try again"
+}

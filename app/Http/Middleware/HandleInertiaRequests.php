@@ -36,7 +36,9 @@ class HandleInertiaRequests extends Middleware
     public function share(Request $request): array
     {
         return array_merge(parent::share($request), [
-            //
+            'locale' => app()->getLocale(),
+            'availableLocales' => config('app.available_locales'),
+            'forumName' => fn () => \App\Models\Setting::get('forum_name', 'TechDevs'),
         ]);
     }
 }

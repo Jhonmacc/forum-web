@@ -26,8 +26,14 @@ class MentionedInReply extends Notification implements ShouldQueue
 
     public function toDatabase($notifiable)
     {
+        $locale = $notifiable->locale ?? config('app.locale');
+        app()->setLocale($locale);
+
         return [
-            'message' => "@{$this->mentionedBy} mencionou você em uma resposta no post '{$this->reply->comment->post->title}'.",
+            'message' => __('notifications.mentioned_in_reply', [
+                'name' => $this->mentionedBy,
+                'title' => $this->reply->comment->post->title,
+            ]),
             'reply_id' => $this->reply->id,
             'comment_id' => $this->reply->comment_id,
             'post_id' => $this->reply->comment->post_id,

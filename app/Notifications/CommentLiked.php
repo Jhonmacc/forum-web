@@ -26,22 +26,29 @@ class CommentLiked extends Notification implements ShouldQueue
 
     public function toDatabase($notifiable)
     {
+        $locale = $notifiable->locale ?? config('app.locale');
+        app()->setLocale($locale);
+
         if ($this->comment instanceof \App\Models\Comment) {
-            $type = 'comentário';
+            $type = __('notifications.comment_type');
             $post = $this->comment->post;
             $postId = $this->comment->post_id;
             $commentId = $this->comment->id;
         } elseif ($this->comment instanceof \App\Models\Reply) {
-            $type = 'resposta';
+            $type = __('notifications.reply_type');
             $post = $this->comment->comment->post;
             $postId = $this->comment->comment->post_id;
             $commentId = $this->comment->id;
         } else {
-            throw new \Exception('Tipo de comentário inválido para notificação');
+            throw new \Exception('Invalid comment type for notification');
         }
 
         return [
-            'message' => "@{$this->likedBy} curtiu sua {$type} no post '{$post->title}'.",
+            'message' => __('notifications.comment_liked', [
+                'name' => $this->likedBy,
+                'type' => $type,
+                'title' => $post->title,
+            ]),
             'comment_id' => $commentId,
             'post_id' => $postId,
             'type' => $type,

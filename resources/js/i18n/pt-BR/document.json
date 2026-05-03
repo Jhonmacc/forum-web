@@ -1,0 +1,15 @@
+{
+    "add_word": "Adicionar Palavra",
+    "title": "Título",
+    "subtitle": "Subtítulo",
+    "description": "Descrição",
+    "image": "Imagem",
+    "document": "Documento",
+    "submit": "Enviar",
+    "view_word": "Visualizar Palavra",
+    "no_words": "Nenhuma palavra encontrada.",
+    "word_saved": "Palavra salva com sucesso!",
+    "error_loading": "Erro desconhecido ao carregar palavras.",
+    "error_submit": "Erro desconhecido ao enviar o formulário.",
+    "try_again": "Tentar novamente"
+}

@@ -13,6 +13,8 @@ const props = defineProps({
     user: Object,
 });
 
+const NAME_MAX_LENGTH = 80;
+
 const form = useForm({
     _method: 'PUT',
     name: props.user.name,
@@ -78,11 +80,11 @@ const clearPhotoFileInput = () => {
 <template>
     <FormSection @submitted="updateProfileInformation">
         <template #title>
-            Informações do perfil
+            {{ $t('profile.profile_information') }}
         </template>
 
         <template #description>
-            Atualize as informações do perfil e o endereço de e-mail da sua conta.
+            {{ $t('profile.profile_information_description') }}
         </template>
 
         <template #form>
@@ -97,7 +99,7 @@ const clearPhotoFileInput = () => {
                     @change="updatePhotoPreview"
                 >
 
-                <InputLabel for="photo" value="Foto" />
+                <InputLabel for="photo" :value="$t('profile.photo')" />
 
                 <!-- Current Profile Photo -->
                 <div v-show="! photoPreview" class="mt-2">
@@ -113,7 +115,7 @@ const clearPhotoFileInput = () => {
                 </div>
 
                 <SecondaryButton class="mt-2 me-2" type="button" @click.prevent="selectNewPhoto">
-                    Selecione uma nova foto
+                    {{ $t('profile.select_new_photo') }}
                 </SecondaryButton>
 
                 <SecondaryButton
@@ -122,7 +124,7 @@ const clearPhotoFileInput = () => {
                     class="mt-2"
                     @click.prevent="deletePhoto"
                 >
-                    Remover Foto
+                    {{ $t('profile.remove_photo') }}
                 </SecondaryButton>
 
                 <InputError :message="form.errors.photo" class="mt-2" />
@@ -130,26 +132,31 @@ const clearPhotoFileInput = () => {
 
             <!-- Name -->
             <div class="col-span-6 sm:col-span-4">
-                <InputLabel for="name" value="Nome" />
+                <InputLabel for="name" :value="$t('profile.name')" />
                 <TextInput
                     id="name"
                     v-model="form.name"
                     type="text"
                     class="mt-1 block w-full"
+                    :maxlength="NAME_MAX_LENGTH"
                     required
                     autocomplete="name"
                 />
+                <p class="mt-1 text-xs text-gray-400 dark:text-gray-500">
+                    {{ form.name.length }} / {{ NAME_MAX_LENGTH }} {{ $t('comments.characters') }}
+                </p>
                 <InputError :message="form.errors.name" class="mt-2" />
             </div>
 
             <!-- Email -->
             <div class="col-span-6 sm:col-span-4">
-                <InputLabel for="email" value="Email" />
+                <InputLabel for="email" :value="$t('profile.email')" />
                 <TextInput
                     id="email"
                     v-model="form.email"
                     type="email"
                     class="mt-1 block w-full"
+                    maxlength="255"
                     required
                     autocomplete="username"
                 />
@@ -157,7 +164,7 @@ const clearPhotoFileInput = () => {
 
                 <div v-if="$page.props.jetstream.hasEmailVerification && user.email_verified_at === null">
                     <p class="text-sm mt-2 dark:text-white">
-                        Seu endereço de e-mail não foi verificado.
+                        {{ $t('profile.email_unverified') }}
 
                         <Link
                             :href="route('verification.send')"
@@ -166,12 +173,12 @@ const clearPhotoFileInput = () => {
                             class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800"
                             @click.prevent="sendEmailVerification"
                         >
-                        Clique aqui para reenviar o e-mail de verificação.
+                        {{ $t('profile.resend_verification_email') }}
                         </Link>
                     </p>
 
                     <div v-show="verificationLinkSent" class="mt-2 font-medium text-sm text-green-600 dark:text-green-400">
-                        A new verification link has been sent to your email address.
+                        {{ $t('profile.verification_link_sent') }}
                     </div>
                 </div>
             </div>
@@ -179,11 +186,11 @@ const clearPhotoFileInput = () => {
 
         <template #actions>
             <ActionMessage :on="form.recentlySuccessful" class="me-3">
-                salvar.
+                {{ $t('profile.saved') }}
             </ActionMessage>
 
             <PrimaryButton :class="{ 'opacity-25': form.processing }" :disabled="form.processing">
-                Salvar
+                {{ $t('common.save') }}
             </PrimaryButton>
         </template>
     </FormSection>

@@ -4,82 +4,94 @@ namespace App\Http\Controllers;
 
 use App\Models\Post;
 use App\Models\Tag;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Log;
 
 class ForumController extends Controller
 {
     public function index(Request $request)
     {
+        $data = $this->buildPostQuery($request);
+
+        return Inertia::render('Forum/Index', $data);
+    }
+
+    public function publicIndex(Request $request)
+    {
+        $data = $this->buildPostQuery($request);
+        $data['isAuthenticated'] = auth()->check();
+        $data['stats'] = [
+            'members' => User::count(),
+            'posts' => Post::count(),
+        ];
+
+        return Inertia::render('Welcome', $data);
+    }
+
+    private function buildPostQuery(Request $request): array
+    {
         $validated = $request->validate([
             'tag' => 'nullable|string',
-            'sort' => 'nullable|string|in:últimas,mais novo,mais velho',
+            'sort' => 'nullable|string|in:latest,newest,oldest,most_voted,hot',
             'per_page' => 'nullable|integer|min:1|max:100',
             'page' => 'nullable|integer|min:1',
         ]);
 
         $tag = $validated['tag'] ?? 'Todos';
-        $sort = $validated['sort'] ?? 'últimas';
+        $sort = $validated['sort'] ?? 'latest';
         $perPage = $validated['per_page'] ?? 5;
         $page = $validated['page'] ?? 1;
 
-        // Log para depuração
-        Log::info('ForumController::index', [
-            'tag' => $tag,
-            'sort' => $sort,
-            'per_page' => $perPage,
-            'page' => $page,
-        ]);
-
-        // Inicia a query para buscar os posts
         $query = Post::with(['tags', 'user'])
                      ->withCount(['comments', 'likes']);
 
-        // Filtra por tag, se não for "Todos"
         if ($tag !== 'Todos') {
             $query->whereHas('tags', function ($q) use ($tag) {
                 $q->where('name', $tag);
             });
         }
 
-        // Ordena com base no parâmetro sort
         switch ($sort) {
-            case 'mais novo':
+            case 'hot':
+                $query->orderByHot();
+                break;
+            case 'newest':
                 $query->orderBy('created_at', 'desc');
                 break;
-            case 'mais velho':
+            case 'oldest':
                 $query->orderBy('created_at', 'asc');
                 break;
-            case 'últimas':
+            case 'most_voted':
+                $query->orderBy('likes_count', 'desc');
+                break;
+            case 'latest':
             default:
-                // Ordena por última atividade (ex.: comentários ou criação)
                 $query->orderBy('updated_at', 'desc');
                 break;
         }
 
-        // Executa a query com paginação
         $posts = $query->paginate($perPage, ['*'], 'page', $page);
+        $currentUserId = auth()->id();
+        $posts->getCollection()->transform(function (Post $post) use ($currentUserId) {
+            $post->liked_by_current_user = $currentUserId
+                ? $post->likes()->where('user_id', $currentUserId)->exists()
+                : false;
+            return $post;
+        });
 
-        // Log para depuração dos posts retornados
-        Log::info('Posts retornados', [
-            'current_page' => $posts->currentPage(),
-            'per_page' => $posts->perPage(),
-            'total' => $posts->total(),
-            'data' => $posts->items(),
-        ]);
-
-        // Mantém os parâmetros na URL para a paginação
         $posts->appends([
             'tag' => $tag,
             'sort' => $sort,
             'per_page' => $perPage,
         ]);
 
-        // Busca todas as tags disponíveis
         $tags = Tag::all(['id', 'code', 'name', 'color', 'icon', 'description']);
 
-        return Inertia::render('Forum/Index', [
+        $categoryCounts = Tag::withCount('posts')->pluck('posts_count', 'name');
+        $categoryCounts['Todos'] = Post::count();
+
+        return [
             'posts' => $posts,
             'filters' => [
                 'tag' => $tag,
@@ -87,6 +99,7 @@ class ForumController extends Controller
                 'per_page' => $perPage,
             ],
             'tags' => $tags,
-        ]);
+            'categoryCounts' => $categoryCounts,
+        ];
     }
 }

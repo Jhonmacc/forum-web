@@ -107,29 +107,29 @@ const disableTwoFactorAuthentication = () => {
 <template>
     <ActionSection>
         <template #title>
-            Autenticação de dois fatores
+            {{ $t('profile.two_factor_authentication') }}
         </template>
 
         <template #description>
-            Adicione segurança adicional à sua conta usando autenticação de dois fatores.
+            {{ $t('profile.two_factor_description') }}
         </template>
 
         <template #content>
             <h3 v-if="twoFactorEnabled && ! confirming" class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                You have enabled two factor authentication.
+                {{ $t('profile.two_factor_enabled') }}
             </h3>
 
             <h3 v-else-if="twoFactorEnabled && confirming" class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                Conclua a ativação da autenticação de dois fatores.
+                {{ $t('profile.two_factor_finish_enabling') }}
             </h3>
 
             <h3 v-else class="text-lg font-medium text-gray-900 dark:text-gray-100">
-                Você não habilitou a autenticação de dois fatores.
+                {{ $t('profile.two_factor_not_enabled') }}
             </h3>
 
             <div class="mt-3 max-w-xl text-sm text-gray-600 dark:text-gray-400">
                 <p>
-                    Quando a autenticação de dois fatores estiver habilitada, você será solicitado a fornecer um token seguro e aleatório durante a autenticação. Você pode recuperar esse token do aplicativo Google Authenticator do seu telefone.
+                    {{ $t('profile.two_factor_help') }}
                 </p>
             </div>
 
@@ -137,11 +137,11 @@ const disableTwoFactorAuthentication = () => {
                 <div v-if="qrCode">
                     <div class="mt-4 max-w-xl text-sm text-gray-600 dark:text-gray-400">
                         <p v-if="confirming" class="font-semibold">
-                            Para concluir a ativação da autenticação de dois fatores, escaneie o seguinte código QR usando o aplicativo autenticador do seu telefone ou insira a chave de configuração e forneça o código OTP gerado.
+                            {{ $t('profile.two_factor_confirm_instructions') }}
                         </p>
 
                         <p v-else>
-                            A autenticação de dois fatores agora está habilitada. Escaneie o seguinte código QR usando o aplicativo autenticador do seu telefone ou insira a chave de configuração.
+                            {{ $t('profile.two_factor_enabled_instructions') }}
                         </p>
                     </div>
 
@@ -149,12 +149,12 @@ const disableTwoFactorAuthentication = () => {
 
                     <div v-if="setupKey" class="mt-4 max-w-xl text-sm text-gray-600 dark:text-gray-400">
                         <p class="font-semibold">
-                            Setup Key: <span v-html="setupKey"></span>
+                            {{ $t('profile.setup_key') }}: <span v-html="setupKey"></span>
                         </p>
                     </div>
 
                     <div v-if="confirming" class="mt-4">
-                        <InputLabel for="code" value="Code" />
+                        <InputLabel for="code" :value="$t('profile.code')" />
 
                         <TextInput
                             id="code"
@@ -175,7 +175,7 @@ const disableTwoFactorAuthentication = () => {
                 <div v-if="recoveryCodes.length > 0 && ! confirming">
                     <div class="mt-4 max-w-xl text-sm text-gray-600 dark:text-gray-400">
                         <p class="font-semibold">
-                            Store these recovery codes in a secure password manager. They can be used to recover access to your account if your two factor authentication device is lost.
+                            {{ $t('profile.recovery_codes_help') }}
                         </p>
                     </div>
 
@@ -191,7 +191,7 @@ const disableTwoFactorAuthentication = () => {
                 <div v-if="! twoFactorEnabled">
                     <ConfirmsPassword @confirmed="enableTwoFactorAuthentication">
                         <PrimaryButton type="button" :class="{ 'opacity-25': enabling }" :disabled="enabling">
-                            Habilitar
+                            {{ $t('profile.enable') }}
                         </PrimaryButton>
                     </ConfirmsPassword>
                 </div>
@@ -205,7 +205,7 @@ const disableTwoFactorAuthentication = () => {
                             :class="{ 'opacity-25': enabling }"
                             :disabled="enabling"
                         >
-                            Confirm
+                            {{ $t('common.confirm') }}
                         </PrimaryButton>
                     </ConfirmsPassword>
 
@@ -214,7 +214,7 @@ const disableTwoFactorAuthentication = () => {
                             v-if="recoveryCodes.length > 0 && ! confirming"
                             class="me-3"
                         >
-                            Regenerate Recovery Codes
+                            {{ $t('profile.regenerate_recovery_codes') }}
                         </SecondaryButton>
                     </ConfirmsPassword>
 
@@ -223,7 +223,7 @@ const disableTwoFactorAuthentication = () => {
                             v-if="recoveryCodes.length === 0 && ! confirming"
                             class="me-3"
                         >
-                            Show Recovery Codes
+                            {{ $t('profile.show_recovery_codes') }}
                         </SecondaryButton>
                     </ConfirmsPassword>
 
@@ -233,7 +233,7 @@ const disableTwoFactorAuthentication = () => {
                             :class="{ 'opacity-25': disabling }"
                             :disabled="disabling"
                         >
-                            Cancel
+                            {{ $t('common.cancel') }}
                         </SecondaryButton>
                     </ConfirmsPassword>
 
@@ -243,7 +243,7 @@ const disableTwoFactorAuthentication = () => {
                             :class="{ 'opacity-25': disabling }"
                             :disabled="disabling"
                         >
-                            Disable
+                            {{ $t('profile.disable') }}
                         </DangerButton>
                     </ConfirmsPassword>
                 </div>

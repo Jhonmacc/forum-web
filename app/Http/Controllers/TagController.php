@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\Tag;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
+use Illuminate\Validation\Rule;
 
 class TagController extends Controller
 {
@@ -11,7 +12,11 @@ class TagController extends Controller
     public function index()
     {
         // Busca as tags com os campos necessários (incluindo o 'id')
-        $tags = Tag::all(['id', 'code', 'name', 'color', 'icon', 'description']);  // Adicionei 'color' aqui
+        $tags = Tag::query()
+            ->select(['id', 'code', 'name', 'color', 'icon', 'description'])
+            ->withCount('posts')
+            ->orderBy('name')
+            ->get();
 
         // Retorna as tags como um JSON
         return Inertia::render('Tags/Index', [
@@ -27,6 +32,8 @@ class TagController extends Controller
     // Salva uma nova tag no banco de dados
     public function store(Request $request)
     {
+        $this->mergeGeneratedCode($request);
+
         $validated = $request->validate([
             'code' => 'nullable|string|max:255|unique:tags',
             'name' => 'required|string|max:255|unique:tags',
@@ -35,28 +42,80 @@ class TagController extends Controller
             'description' => 'nullable|string|max:255',
         ],
         [
-            'name.required' => 'O nome da tag é obrigatório.',
-            'name.unique' => 'Já existe uma tag com este nome.',
-            'color.regex' => 'A cor deve estar no formato hexadecimal (#RRGGBB).',
+            'name.required' => __('messages.tag_name_required'),
+            'name.unique' => __('messages.tag_name_unique'),
+            'color.regex' => __('messages.tag_color_format'),
         ]);
 
-        if (empty($validated['code'])) {
-            $validated['code'] = strtoupper(str_replace(' ', '_', $validated['name']));
-        }
-
-        // Se a cor não for fornecida, atribui #000000 (preto) como padrão
-        $validated['color'] = $validated['color'] ?? '#000000';
+        $validated = $this->normalizeTagData($validated);
 
         Tag::create($validated);
 
-        return redirect()->route('tags.index')->with('success', 'Tag criada com sucesso!');
+        return redirect()->back()->with('success', __('messages.tag_created'));
     }
+
+    public function update(Request $request, Tag $tag)
+    {
+        $this->mergeGeneratedCode($request);
+
+        $validated = $request->validate([
+            'code' => [
+                'nullable',
+                'string',
+                'max:255',
+                Rule::unique('tags', 'code')->ignore($tag->id),
+            ],
+            'name' => [
+                'required',
+                'string',
+                'max:255',
+                Rule::unique('tags', 'name')->ignore($tag->id),
+            ],
+            'color' => 'nullable|string|max:7|regex:/^#[0-9A-Fa-f]{6}$/',
+            'icon' => 'nullable|string|max:255',
+            'description' => 'nullable|string|max:255',
+        ],
+        [
+            'name.required' => __('messages.tag_name_required'),
+            'name.unique' => __('messages.tag_name_unique'),
+            'color.regex' => __('messages.tag_color_format'),
+        ]);
+
+        $tag->update($this->normalizeTagData($validated));
+
+        return redirect()->back()->with('success', __('messages.tag_updated'));
+    }
+
     // Exclui uma tag existente
     public function destroy(Tag $tag)
     {
         // Exclui a tag
         $tag->delete();
 
-        return redirect()->route('tags.index')->with('success', 'Tag excluída com sucesso!');
+        return redirect()->back()->with('success', __('messages.tag_deleted'));
+    }
+
+    private function normalizeTagData(array $data): array
+    {
+        $data['color'] = $data['color'] ?? '#F5B800';
+        $data['icon'] = $data['icon'] ?? 'fa-solid fa-tag';
+
+        return $data;
+    }
+
+    private function mergeGeneratedCode(Request $request): void
+    {
+        if ($request->filled('code') || !$request->filled('name')) {
+            return;
+        }
+
+        $code = str((string) $request->input('name'))
+            ->ascii()
+            ->replaceMatches('/[^A-Za-z0-9]+/', '_')
+            ->trim('_')
+            ->upper()
+            ->toString();
+
+        $request->merge(['code' => $code ?: 'NOVA_TAG']);
     }
 }
