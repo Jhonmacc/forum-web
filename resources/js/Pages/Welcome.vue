@@ -51,7 +51,8 @@
                             :class="activeCat === cat.id
                                 ? 'bg-accent/15 text-accent font-bold'
                                 : 'bg-transparent text-gray-500 dark:text-gray-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800'">
-                        <span class="text-[15px] w-[20px] text-center">{{ cat.icon }}</span>
+                        <i v-if="isIconClass(cat.icon)" :class="cat.icon" class="text-[15px] w-[20px] text-center"></i>
+                        <span v-else class="text-[15px] w-[20px] text-center">{{ cat.icon }}</span>
                         {{ cat.label }}
                         <span class="ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-full"
                               :class="activeCat === cat.id
@@ -139,7 +140,7 @@
                     </h3>
                     <div class="flex flex-wrap gap-2">
                         <button v-for="tag in tags" :key="tag.id"
-                                @click="filterPosts(tag.name)"
+                                @click="filterPosts(String(tag.id))"
                                 class="px-3 py-1.5 rounded-full text-xs font-semibold border-none cursor-pointer transition-colors"
                                 :style="{ background: tag.color + '20', color: tag.color }">
                             {{ tag.name }}
@@ -207,11 +208,12 @@ const props = defineProps({
 });
 
 const categories = computed(() => [
-    { id: 'Todos', label: t('forum.all_discussions'), icon: '⊞' },
-    { id: 'Suporte', label: t('forum.support'), icon: '💬' },
-    { id: 'Ideias', label: t('forum.ideas'), icon: '💡' },
-    { id: 'Artigo', label: t('forum.articles'), icon: '📄' },
-    { id: 'Bug', label: t('forum.bugs'), icon: '🐛' },
+    { id: 'Todos', label: t('forum.all_discussions'), icon: 'fa-solid fa-table-cells-large' },
+    ...(props.tags || []).map(tag => ({
+        id: String(tag.id),
+        label: tag.name,
+        icon: tag.icon || 'fa-solid fa-tag',
+    })),
 ]);
 
 const sortOptions = computed(() => [
@@ -239,10 +241,12 @@ const hasMorePosts = computed(() => loadedPosts.value.length < totalPosts.value)
 
 const getCategoryCount = (catId) => {
     if (props.categoryCounts) {
-        return props.categoryCounts[catId] ?? 0;
+        return props.categoryCounts[String(catId)] ?? 0;
     }
     return 0;
 };
+
+const isIconClass = (icon) => String(icon || '').includes('fa-');
 
 const openAuth = (tab = 'login') => {
     authTab.value = authTabs.includes(tab) ? tab : 'login';

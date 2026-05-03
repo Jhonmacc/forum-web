@@ -53,7 +53,8 @@
                         :class="activeCat === cat.id
                             ? 'bg-accent/15 text-accent font-bold'
                             : 'bg-transparent text-gray-500 dark:text-gray-400 font-medium hover:bg-gray-100 dark:hover:bg-gray-800'">
-                    <span class="text-[15px] w-[22px] text-center">{{ cat.icon }}</span>
+                    <i v-if="isIconClass(cat.icon)" :class="cat.icon" class="text-[15px] w-[22px] text-center"></i>
+                    <span v-else class="text-[15px] w-[22px] text-center">{{ cat.icon }}</span>
                     {{ cat.label }}
                     <span class="ml-auto text-[11px] font-bold px-1.5 py-0.5 rounded-full"
                           :class="activeCat === cat.id
@@ -221,11 +222,12 @@ const navItems = computed(() => [
 ]);
 
 const categories = computed(() => [
-    { id: 'Todos', label: t('forum.all_discussions'), icon: '⊞' },
-    { id: 'Suporte', label: t('forum.support'), icon: '💬' },
-    { id: 'Ideias', label: t('forum.ideas'), icon: '💡' },
-    { id: 'Artigo', label: t('forum.articles'), icon: '📄' },
-    { id: 'Bug', label: t('forum.bugs'), icon: '🐛' },
+    { id: 'Todos', label: t('forum.all_discussions'), icon: 'fa-solid fa-table-cells-large' },
+    ...(props.tags || []).map(tag => ({
+        id: String(tag.id),
+        label: tag.name,
+        icon: tag.icon || 'fa-solid fa-tag',
+    })),
 ]);
 
 const sortOptions = computed(() => [
@@ -235,15 +237,6 @@ const sortOptions = computed(() => [
     { value: 'oldest', label: t('forum.no_reply') },
     { value: 'most_voted', label: t('forum.most_voted') },
 ]);
-
-const CAT_COLORS = {
-    'Suporte':  { bg: '#e0eafc', text: '#2d5aa0' },
-    'Ideias':   { bg: '#dcf5e0', text: '#1d7a3a' },
-    'Artigo':   { bg: '#ece0fc', text: '#5a2d9c' },
-    'Artigos':  { bg: '#ece0fc', text: '#5a2d9c' },
-    'Bug':      { bg: '#fce0df', text: '#a03030' },
-    'Bugs':     { bg: '#fce0df', text: '#a03030' },
-};
 
 const AVATAR_HUES = ['#4a90d9', '#3dab5e', '#d4a028', '#8b5ec8', '#c84d7a', '#d05a3a'];
 
@@ -269,15 +262,14 @@ const currentCategoryLabel = computed(() => {
 
 const getCategoryCount = (catId) => {
     if (props.categoryCounts) {
-        return props.categoryCounts[catId] ?? 0;
+        return props.categoryCounts[String(catId)] ?? 0;
     }
     if (catId === 'Todos') return totalPosts.value;
     return 0;
 };
 
-const getCatBg = (name) => CAT_COLORS[name]?.bg || '#e8e7e3';
-const getCatText = (name) => CAT_COLORS[name]?.text || '#6b6b80';
 const getAvatarColor = (id) => AVATAR_HUES[(id || 0) % AVATAR_HUES.length];
+const isIconClass = (icon) => String(icon || '').includes('fa-');
 
 const getInitials = (name) => {
     if (!name) return '?';

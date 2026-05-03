@@ -41,7 +41,8 @@
             <div class="flex items-center gap-2.5 mb-[7px] flex-wrap">
                 <span v-for="tag in post.tags" :key="tag.id"
                       class="text-[11px] font-bold tracking-wider px-2.5 py-0.5 rounded-full uppercase"
-                      :style="{ background: getCatBg(tag.name), color: getCatText(tag.name) }">
+                      :style="{ background: tagBackground(tag), color: tagTextColor(tag) }">
+                    <i v-if="tag.icon" :class="tag.icon" class="mr-1"></i>
                     {{ tag.name }}
                 </span>
                 <span class="text-xs text-gray-400 dark:text-gray-500">
@@ -81,19 +82,10 @@ const props = defineProps({
 const emit = defineEmits(['vote', 'request-auth', 'click']);
 const imageFailed = ref(false);
 
-const CAT_COLORS = {
-    'Suporte':  { bg: '#e0eafc', text: '#2d5aa0' },
-    'Ideias':   { bg: '#dcf5e0', text: '#1d7a3a' },
-    'Artigo':   { bg: '#ece0fc', text: '#5a2d9c' },
-    'Artigos':  { bg: '#ece0fc', text: '#5a2d9c' },
-    'Bug':      { bg: '#fce0df', text: '#a03030' },
-    'Bugs':     { bg: '#fce0df', text: '#a03030' },
-};
-
 const AVATAR_HUES = ['#4a90d9', '#3dab5e', '#d4a028', '#8b5ec8', '#c84d7a', '#d05a3a'];
 
-const getCatBg = (name) => CAT_COLORS[name]?.bg || '#e8e7e3';
-const getCatText = (name) => CAT_COLORS[name]?.text || '#6b6b80';
+const tagTextColor = (tag) => tag?.color || '#F5B800';
+const tagBackground = (tag) => `${tagTextColor(tag)}22`;
 
 const avatarColor = computed(() => AVATAR_HUES[(props.post.id || 0) % AVATAR_HUES.length]);
 const hasProfilePhoto = computed(() => Boolean(props.post.user?.profile_photo_path && props.post.user?.profile_photo_url));

@@ -46,9 +46,17 @@ class ForumController extends Controller
         $query = Post::with(['tags', 'user'])
                      ->withCount(['comments', 'likes']);
 
-        if ($tag !== 'Todos') {
+        if (!in_array($tag, ['Todos', 'all'], true)) {
             $query->whereHas('tags', function ($q) use ($tag) {
-                $q->where('name', $tag);
+                $q->where(function ($tagQuery) use ($tag) {
+                    if (is_numeric($tag)) {
+                        $tagQuery->where('tags.id', (int) $tag);
+                    }
+
+                    $tagQuery
+                        ->orWhere('code', $tag)
+                        ->orWhere('name', $tag);
+                });
             });
         }
 
@@ -86,10 +94,22 @@ class ForumController extends Controller
             'per_page' => $perPage,
         ]);
 
-        $tags = Tag::all(['id', 'code', 'name', 'color', 'icon', 'description']);
+        $tags = Tag::query()
+            ->select(['id', 'code', 'name', 'color', 'icon', 'description'])
+            ->orderBy('name')
+            ->get();
 
-        $categoryCounts = Tag::withCount('posts')->pluck('posts_count', 'name');
+        $categoryCounts = Tag::withCount('posts')
+            ->get()
+            ->reduce(function (array $counts, Tag $tag) {
+                $counts[(string) $tag->id] = $tag->posts_count;
+                $counts[$tag->code] = $tag->posts_count;
+                $counts[$tag->name] = $tag->posts_count;
+
+                return $counts;
+            }, []);
         $categoryCounts['Todos'] = Post::count();
+        $categoryCounts['all'] = $categoryCounts['Todos'];
 
         return [
             'posts' => $posts,
