@@ -1,6 +1,313 @@
-# Sistema de Fórum Interativo
+# TechDevs Forum Web
 
-Bem-vindo(a) ao **Sistema de Fórum Interativo**, um projeto completo desenvolvido para oferecer uma experiência fluida e dinâmica para comunidades online! Este sistema foi construído do zero com tecnologias modernas, permitindo que os usuários criem, editem e interajam com posts de forma intuitiva.
+## English
+
+TechDevs Forum Web is a modern forum application built with Laravel, Inertia.js, Vue 3, and Tailwind CSS. The project has evolved into a complete community experience: public visitor page, modal-based authentication, admin dashboard, tag management, post voting, threaded comments, rich TipTap editor, user notifications, multi-language support, and light/dark mode.
+
+The project now runs preferably with Docker Compose, including PHP-FPM, Nginx, MySQL, Redis, a queue worker, and Vite.
+
+![Project Image](https://i.imgur.com/w2lobVh.png)
+
+![Project Image](https://i.imgur.com/zseuvxk.png)
+
+![Project Image](https://i.imgur.com/We3Vv33.png)
+
+![Project Image](https://i.imgur.com/RtVYtWp.png)
+
+### Main Features
+
+- Public `/` page where visitors can browse discussions, create an account, or sign in.
+- Login and registration centralized in the Welcome Page modal.
+- Integrated forum layout with header, collapsible sidebar, navigation, dark/light mode, and PT-BR/EN language switcher.
+- Discussion listing with database-driven tag filters, search, sorting, and temporal `hot` ranking.
+- Upvote-based voting system, highlighting the most relevant posts.
+- Modern post view with a clean continuous layout and threaded comments.
+- Comments and replies with visual hierarchy, connected lines, votes, replies, edit/delete actions, and `@username` mentions.
+- Rich TipTap/ProseMirror editor for posts, comments, and replies.
+- Support for links, images, internal post references, and safe external link previews.
+- Backend HTML sanitization for posts, comments, and replies.
+- Notification system for votes, comments, replies, and mentions.
+- Modern tag management with colors, icons, descriptions, editing, and SweetAlert2 confirmations.
+- Redesigned user profile integrated with the forum UI.
+- Admin dashboard with forum business metrics, available only to administrators.
+- PT-BR and EN translations for the main screens and messages.
+
+### Architecture
+
+#### Backend
+
+- Laravel 11
+- Fortify and Sanctum for authentication
+- Inertia Laravel
+- MySQL 8
+- Redis for queues/cache
+- Eloquent ORM relationships for posts, tags, users, comments, replies, votes, and notifications
+- Middlewares for locale and admin-only areas
+- Services for HTML sanitization and safe link preview generation
+
+#### Frontend
+
+- Vue 3
+- Inertia.js
+- Tailwind CSS
+- Vite
+- TipTap/ProseMirror
+- Vue I18n
+- Font Awesome
+- SweetAlert2
+
+#### Docker
+
+The `docker-compose.yml` file starts these services:
+
+- `forum-app`: Laravel application with PHP 8.2 FPM, Composer, and Node.js.
+- `forum-nginx`: web server available at `http://localhost:8000`.
+- `forum-mysql`: MySQL 8 database.
+- `forum-redis`: Redis for queues/cache.
+- `forum-queue`: Laravel queue worker.
+- `forum-vite`: Vite development server available on port `5173`.
+
+### Business Rules
+
+- Visitors can see the public page and open posts, but must sign in to vote, comment, or reply.
+- Login and registration must happen through the main page modal.
+- Regular users cannot see or access the Admin Dashboard or Tag Management.
+- Only administrators can access `/dashboard` and `/forum/tags`.
+- Voting is currently simple upvote only, without downvotes.
+- The `hot` sorting combines votes, comments, and recency.
+- Tags are dynamic database entities; colors, icons, and counters no longer depend on fixed names.
+- Link previews block local, private, loopback, and metadata IP URLs to reduce SSRF risk.
+- Rich content is sanitized on the backend before being stored/rendered.
+
+### Installation With Docker Compose
+
+#### Requirements
+
+- Git
+- Docker
+- Docker Compose v2
+
+#### 1. Clone the Project
+
+```bash
+git clone https://github.com/Jhonmacc/forum-web.git
+cd forum-web
+```
+
+#### 2. Create the Environment File
+
+```bash
+cp .env.example .env
+```
+
+Update `.env` to use the Docker services:
+
+```env
+APP_NAME=TechDevs
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+
+APP_LOCALE=en
+APP_FALLBACK_LOCALE=pt-BR
+APP_FAKER_LOCALE=en_US
+
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=forum_web
+DB_USERNAME=laravel
+DB_PASSWORD=secret
+
+SESSION_DRIVER=database
+CACHE_STORE=redis
+QUEUE_CONNECTION=redis
+
+REDIS_CLIENT=phpredis
+REDIS_HOST=redis
+REDIS_PASSWORD=null
+REDIS_PORT=6379
+
+MAIL_MAILER=log
+VITE_APP_NAME="${APP_NAME}"
+```
+
+#### 3. Start the Containers
+
+```bash
+docker compose up -d --build
+```
+
+#### 4. Install Dependencies Inside the Container
+
+The image build already installs dependencies, but these commands are safe to ensure `vendor` and `node_modules` are correct in the local volume:
+
+```bash
+docker compose exec app composer install
+docker compose exec app npm install
+```
+
+#### 5. Prepare Laravel
+
+```bash
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate
+docker compose exec app php artisan db:seed --class=SettingsSeeder
+docker compose exec app php artisan storage:link
+```
+
+#### 6. Build Production Assets, If Needed
+
+For development, the `forum-vite` service already runs `npm run dev`.
+
+To generate production assets:
+
+```bash
+docker compose exec app npm run build
+```
+
+#### 7. Access the Project
+
+Open:
+
+```text
+http://localhost:8000
+```
+
+Vite is available at:
+
+```text
+http://localhost:5173
+```
+
+### Creating an Administrator
+
+Create an account normally through the main page at `http://localhost:8000`. Then promote the user to administrator:
+
+```bash
+docker compose exec app php artisan tinker
+```
+
+In Tinker:
+
+```php
+$user = \App\Models\User::where('email', 'your-email@example.com')->first();
+$user->forceFill(['is_admin' => true])->save();
+```
+
+After that, the user can access:
+
+```text
+http://localhost:8000/dashboard
+http://localhost:8000/forum/tags
+```
+
+### Useful Commands
+
+View logs:
+
+```bash
+docker compose logs -f
+```
+
+View Laravel logs only:
+
+```bash
+docker compose logs -f app
+```
+
+View Vite logs:
+
+```bash
+docker compose logs -f vite
+```
+
+Run migrations again:
+
+```bash
+docker compose exec app php artisan migrate
+```
+
+Clear Laravel cache:
+
+```bash
+docker compose exec app php artisan optimize:clear
+```
+
+Run build:
+
+```bash
+docker compose exec app npm run build
+```
+
+Stop containers:
+
+```bash
+docker compose down
+```
+
+Stop containers and remove database/cache volumes:
+
+```bash
+docker compose down -v
+```
+
+### Main Routes
+
+- `/`: public Welcome Page with discussion list, login, and registration.
+- `/forum`: authenticated forum with sidebar, filters, sorting, and post creation.
+- `/posts/{id}`: public/authenticated post view.
+- `/users/{id}`: public profile with user posts.
+- `/user/profile`: authenticated user account settings.
+- `/forum/tags`: tag management, admin only.
+- `/dashboard`: admin dashboard, admin only.
+
+### Tests and Manual Validation
+
+After important changes, run:
+
+```bash
+docker compose exec app php artisan test
+docker compose exec app npm run build
+```
+
+It is also useful to validate:
+
+- registration and login through the Welcome Page;
+- visitor access to posts;
+- vote/comment blocking for visitors;
+- post creation with the rich editor;
+- comments and replies creation;
+- `@username` mentions;
+- external link previews;
+- tag filters after editing names, colors, and icons;
+- dashboard and tags with an admin user;
+- dashboard/tags blocking for regular users;
+- PT-BR/EN language switcher;
+- light/dark mode.
+
+### Security Notes
+
+- Sensitive actions use backend authentication and authorization.
+- Dashboard and tags are protected by admin middleware.
+- HTML content is sanitized before being saved.
+- External link previews restrict private and local URLs.
+- Visitors cannot vote, comment, or reply without authentication.
+- Post, comment, and profile fields have frontend character limits and backend validation.
+
+### Project Tags
+
+`Laravel` `Vue.js` `Inertia.js` `Tailwind CSS` `Docker` `MySQL` `Redis` `TipTap` `Forum` `UX`
+
+Developed by Jhon Amorim.
+
+---
+
+## Português
+
+TechDevs Forum Web é uma aplicação de fórum moderna criada com Laravel, Inertia.js, Vue 3 e Tailwind CSS. O projeto evoluiu para uma experiência completa de comunidade: tela pública para visitantes, autenticação por modal, dashboard administrativo, gerenciamento de tags, posts com votação, comentários em árvore, editor rico com TipTap, notificações entre usuários, multi-idioma e suporte a modo claro/escuro.
+
+O projeto agora roda preferencialmente com Docker Compose, incluindo PHP-FPM, Nginx, MySQL, Redis, worker de filas e Vite.
 
 ![Imagem do Projeto](https://i.imgur.com/w2lobVh.png)
 
@@ -10,128 +317,289 @@ Bem-vindo(a) ao **Sistema de Fórum Interativo**, um projeto completo desenvolvi
 
 ![Imagem do Projeto](https://i.imgur.com/RtVYtWp.png)
 
-## 📋 Sobre o Projeto
+### Principais Recursos
 
-Este projeto é um fórum interativo que combina funcionalidades robustas com um design moderno e responsivo. Ele foi desenvolvido para promover engajamento entre os usuários, com recursos como notificações em tempo real, comentários aninhados, filtros dinâmicos e upload de imagens. O objetivo foi criar uma solução completa para comunidades online, com foco em usabilidade e performance.
+- Tela pública em `/` para visitantes visualizarem discussões, criarem conta ou fazerem login.
+- Login e cadastro centralizados no modal da Welcome Page.
+- Layout integrado do fórum com header, sidebar recolhível, navegação, modo dark/light e troca de idioma PT-BR/EN.
+- Listagem de discussões com filtros por tags reais do banco, busca, ordenação e ranking temporal `hot`.
+- Sistema de votação por upvote, com destaque para posts mais relevantes.
+- Tela de visualização de post com UX inspirada em fóruns modernos, conteúdo contínuo e comentários em árvore.
+- Comentários e respostas com hierarquia visual, linhas conectadas, votos, respostas, edição, exclusão e menções com `@username`.
+- Editor rico com TipTap/ProseMirror para posts, comentários e respostas.
+- Suporte a links, imagens, referências internas de posts e previews externos seguros.
+- Sanitização de HTML no backend para conteúdo de posts, comentários e respostas.
+- Sistema de notificações para votos, comentários, respostas e menções.
+- Gerenciamento moderno de tags com cores, ícones, descrições, edição e exclusão com SweetAlert2.
+- Perfil do usuário redesenhado e integrado ao visual do fórum.
+- Dashboard administrativo com métricas de negócio do fórum, acessível somente para usuários administradores.
+- Multi-idioma em PT-BR e EN para as principais telas e mensagens.
 
-### 🔹 Funcionalidades Principais
+### Arquitetura
 
-- **Sistema de Filas de Notificações**: Notificações assíncronas usando filas no Laravel, permitindo que os usuários sejam notificados em tempo real sobre novas interações (ex.: comentários, curtidas) sem sobrecarregar o sistema.
-- **Comentários com Respostas e Curtidas**: Sistema de comentários aninhados (respostas em múltiplos níveis) com suporte a curtidas nos comentários e nos posts, promovendo maior engajamento.
-- **Filtros e Mecanismo de Busca**: Filtros dinâmicos por tags (ex.: Suporte, Ideias, Artigos, Bugs) e ordenação (ex.: mais recentes, mais antigos, últimas atividades), além de um mecanismo de busca eficiente para encontrar posts rapidamente.
-- **Atualização Dinâmica da Listagem de Posts**: Botão "Atualizar" para recarregar a lista de posts em tempo real (mantendo os filtros) e botão "Carregar Mais" para carregamento infinito, melhorando a experiência do usuário.
-- **Upload de Imagens nos Posts**: Suporte para upload de imagens nos posts, permitindo que os usuários enriqueçam suas publicações com conteúdo visual.
-- **Sistema de Tags Personalizáveis**: Tags com cores e ícones (usando Font Awesome), que podem ser atribuídas aos posts para facilitar a categorização e busca.
-- **Modais Interativos**: Modais para criação e edição de posts com validação de formulários, integração com o editor Quill para texto rico, e um contorno amarelo sombreado para destaque visual.
-- **Design Responsivo e Moderno**: Interface limpa e responsiva, construída com Tailwind CSS, garantindo uma ótima experiência em dispositivos móveis e desktops.
+#### Backend
 
-### 🔹 Tecnologias Utilizadas
+- Laravel 11
+- Fortify e Sanctum para autenticação
+- Inertia Laravel
+- MySQL 8
+- Redis para filas/cache
+- Eloquent ORM com relacionamentos para posts, tags, usuários, comentários, respostas, votos e notificações
+- Middlewares para locale e área administrativa
+- Services para sanitização de HTML e geração segura de previews de links
 
-- **Laravel 11**: Backend robusto com Eloquent ORM para gerenciar modelos e relacionamentos, filas para notificações assíncronas, e validação de dados.
-- **Inertia.js**: Integração perfeita entre o backend Laravel e o frontend Vue, permitindo uma experiência de SPA (Single Page Application) sem a complexidade de uma API REST tradicional.
-- **Vue 3**: Frontend reativo e dinâmico, com componentes reutilizáveis e gerenciamento de estado eficiente.
-- **Tailwind CSS com Vite**: Estilização rápida e moderna, com Vite para um build rápido e eficiente durante o desenvolvimento.
-- **Outras Dependências**:
-  - **Font Awesome**: Para ícones personalizáveis nas tags.
-  - **Quill**: Editor de texto rico para formatação de posts.
-  - **SweetAlert2**: Para alertas visuais e interativos.
-  - **PrimeVue**: Componentes adicionais de UI (ex.: multiselect).
+#### Frontend
 
-### 🔹 Desafios e Aprendizados
+- Vue 3
+- Inertia.js
+- Tailwind CSS
+- Vite
+- TipTap/ProseMirror
+- Vue I18n
+- Font Awesome
+- SweetAlert2
 
-Durante o desenvolvimento, enfrentei alguns desafios técnicos:
-- **Sincronização de Estados**: Garantir a sincronização entre o frontend e o backend foi um desafio, resolvido com o uso eficiente do Inertia.js.
-- **Comentários Aninhados**: Implementar um sistema de comentários com respostas em múltiplos níveis exigiu o uso de relações recursivas no Eloquent.
-- **Otimização de Carregamento**: Otimizar o carregamento de posts com filtros dinâmicos foi resolvido com um mecanismo de "Carregar Mais" (infinite scroll).
-- **Notificações Assíncronas**: Configurar filas no Laravel para notificações em tempo real, garantindo performance e escalabilidade.
+#### Docker
 
-Esses desafios me ensinaram muito sobre a integração de tecnologias modernas e como criar uma experiência de usuário fluida e interativa.
+O `docker-compose.yml` sobe os seguintes serviços:
 
-### 🔹 Impacto do Projeto
+- `forum-app`: aplicação Laravel com PHP 8.2 FPM, Composer e Node.js.
+- `forum-nginx`: servidor web disponível em `http://localhost:8000`.
+- `forum-mysql`: banco MySQL 8.
+- `forum-redis`: Redis para filas/cache.
+- `forum-queue`: worker de filas Laravel.
+- `forum-vite`: servidor Vite disponível na porta `5173`.
 
-Este fórum é uma solução completa para comunidades online, permitindo que os usuários criem, editem e interajam com posts de forma intuitiva. As funcionalidades de notificações, comentários e filtros tornam o sistema altamente engajador, enquanto o design responsivo e o upload de imagens garantem uma experiência visual rica.
+### Regras de Negócio Importantes
 
-## 🚀 Como Instalar e Executar o Projeto
+- Usuários visitantes podem ver a página pública e abrir posts, mas precisam fazer login para votar, comentar ou responder.
+- Login e cadastro devem ser feitos pelo modal da tela principal.
+- Usuários comuns não veem nem acessam o Dashboard administrativo ou Gerenciamento de Tags.
+- Apenas administradores podem acessar `/dashboard` e `/forum/tags`.
+- A votação atual é upvote simples, sem downvote.
+- A ordenação `hot` combina votos, comentários e recência.
+- Tags são entidades dinâmicas do banco; cores, ícones e contadores não dependem mais de nomes fixos.
+- Link previews bloqueiam URLs locais, privadas, loopback e metadata IPs para reduzir risco de SSRF.
+- Conteúdos ricos são sanitizados no backend antes de persistir/renderizar.
 
-Siga os passos abaixo para configurar e executar o projeto localmente.
+### Instalação com Docker Compose
 
-### Pré-requisitos
+#### Pré-requisitos
 
-- **PHP**: ^8.2
-- **Composer**: Última versão
-- **Node.js**: ^18.x ou superior
-- **NPM**: Última versão
-- **MySQL** (ou outro banco de dados compatível com Laravel)
-- **Redis** (opcional, para filas de notificações)
+- Git
+- Docker
+- Docker Compose v2
 
-### Passos de Instalação
-Sevidor NGINX ou Apache da sua escolha
-Recomendo fortemente baixar o HERB => https://herd.laravel.com/windows Herd é um ambiente de desenvolvimento nativo e rápido para Laravel e PHP para Windows. Ele inclui tudo o que você precisa para começar a desenvolver com Laravel, incluindo PHP e nginx.
-Depois de instalar o Herd, você está pronto para começar a desenvolver com Laravel.
-No Herb escolha versão do PHP 8.2 e pronto.
-Eu acho melhor que o XAMPP ou WAMP SERVER.
+#### 1. Clonar o projeto
 
-1. **Clone o Repositório**:
-   ```bash
-   git clone https://github.com/Jhonmacc/forum-web.git
-    ```
-1.2. cd forum-web
-
-2. Instale as Dependências do PHP: Execute o Composer para instalar as dependências do Laravel e as Dependências do Frontend: Execute o NPM para instalar as dependências do Vue e outras bibliotecas:
 ```bash
-composer install
-npm install
-````
-3. Configure o ambiente e gere a Chave da Aplicação: Execute o comando Artisan para gerar a chave da aplicação::
+git clone https://github.com/Jhonmacc/forum-web.git
+cd forum-web
+```
+
+#### 2. Criar o arquivo de ambiente
+
 ```bash
 cp .env.example .env
-php artisan key:generate
-````
-4. Configure o banco de dados no .env, banco recomendado Mysql:
-```bash
-DB_CONNECTION=mysql
-DB_HOST=127.0.0.1
-DB_PORT=3306
-DB_DATABASE=nome_do_banco
-DB_USERNAME=seu_usuario
-DB_PASSWORD=sua_senha
+```
 
-# Configuração de filas (opcional, para notificações assíncronas)
+Atualize o `.env` para usar os serviços do Docker:
+
+```env
+APP_NAME=TechDevs
+APP_ENV=local
+APP_DEBUG=true
+APP_URL=http://localhost:8000
+
+APP_LOCALE=pt-BR
+APP_FALLBACK_LOCALE=en
+APP_FAKER_LOCALE=pt_BR
+
+DB_CONNECTION=mysql
+DB_HOST=mysql
+DB_PORT=3306
+DB_DATABASE=forum_web
+DB_USERNAME=laravel
+DB_PASSWORD=secret
+
+SESSION_DRIVER=database
+CACHE_STORE=redis
 QUEUE_CONNECTION=redis
-REDIS_HOST=127.0.0.1
+
+REDIS_CLIENT=phpredis
+REDIS_HOST=redis
 REDIS_PASSWORD=null
 REDIS_PORT=6379
-````
-5. Execute as Migrações: Crie as tabelas no banco de dados executando as migrações:
-```bash
-php artisan migrate
-````
-6. Configure o Storage: Crie um link simbólico para o storage (necessário para upload de imagens):
-```bash
-php artisan storage:link
-````
-7. Compile os assets:
-```bash
-npm run build
-npm run dev
-````
-8. Inicialize o servidor do laravel:
-```bash
-php artisan serve
-````
-9. Inicie as filas works para notificações em tempo real
-```bash
-php artisan queue:work
-````
-10. O projeto estará disponível em http://localhost:suaporta
-Clique em Registrar e crie o seu usuário após isso será redirecionado para tela principal do forum 
-http://localhost:suaporta/forum
-Necessário e Importante: Tela para criar as tags http://localhost:suaporta/tags
 
-## 🏷️ Tags
+MAIL_MAILER=log
+VITE_APP_NAME="${APP_NAME}"
+```
 
-`#Php` `#Laravel` `#Vuejs` `#TailwindCSS` `#Mysql` `#DesenvolvimentoWeb` `#Forum` `#Inovação` `#Tecnologia`
+#### 3. Subir os containers
 
-💻 Desenvolvido com ❤️ e muita dedicação para uma imerssão maior em UX Designer.
+```bash
+docker compose up -d --build
+```
 
-   
+#### 4. Instalar dependências dentro do container
+
+O build já instala dependências, mas estes comandos são seguros para garantir que `vendor` e `node_modules` estejam corretos no volume local:
+
+```bash
+docker compose exec app composer install
+docker compose exec app npm install
+```
+
+#### 5. Preparar o Laravel
+
+```bash
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate
+docker compose exec app php artisan db:seed --class=SettingsSeeder
+docker compose exec app php artisan storage:link
+```
+
+#### 6. Compilar assets para produção, se necessário
+
+Para desenvolvimento, o serviço `forum-vite` já executa `npm run dev`.
+
+Para gerar assets de produção:
+
+```bash
+docker compose exec app npm run build
+```
+
+#### 7. Acessar o projeto
+
+Abra:
+
+```text
+http://localhost:8000
+```
+
+O Vite fica disponível em:
+
+```text
+http://localhost:5173
+```
+
+### Criando um Administrador
+
+Crie uma conta normalmente pela tela principal em `http://localhost:8000`. Depois, promova o usuário para administrador:
+
+```bash
+docker compose exec app php artisan tinker
+```
+
+No Tinker:
+
+```php
+$user = \App\Models\User::where('email', 'seu-email@exemplo.com')->first();
+$user->forceFill(['is_admin' => true])->save();
+```
+
+Depois disso, o usuário poderá acessar:
+
+```text
+http://localhost:8000/dashboard
+http://localhost:8000/forum/tags
+```
+
+### Comandos Úteis
+
+Ver logs:
+
+```bash
+docker compose logs -f
+```
+
+Ver logs apenas do Laravel:
+
+```bash
+docker compose logs -f app
+```
+
+Ver logs do Vite:
+
+```bash
+docker compose logs -f vite
+```
+
+Executar migrations novamente:
+
+```bash
+docker compose exec app php artisan migrate
+```
+
+Limpar cache do Laravel:
+
+```bash
+docker compose exec app php artisan optimize:clear
+```
+
+Rodar build:
+
+```bash
+docker compose exec app npm run build
+```
+
+Parar containers:
+
+```bash
+docker compose down
+```
+
+Parar containers e remover volumes do banco/cache:
+
+```bash
+docker compose down -v
+```
+
+### Rotas Principais
+
+- `/`: Welcome Page pública com listagem de discussões, login e cadastro.
+- `/forum`: fórum autenticado com sidebar, filtros, ordenações e criação de posts.
+- `/posts/{id}`: visualização pública/autenticada do post.
+- `/users/{id}`: perfil público com posts do usuário.
+- `/user/profile`: configurações da conta do usuário autenticado.
+- `/forum/tags`: gerenciamento de tags, somente admin.
+- `/dashboard`: dashboard administrativo, somente admin.
+
+### Testes e Validação Manual
+
+Após alterações importantes, recomenda-se executar:
+
+```bash
+docker compose exec app php artisan test
+docker compose exec app npm run build
+```
+
+Também é útil validar:
+
+- cadastro e login pela Welcome Page;
+- acesso visitante a posts;
+- bloqueio de voto/comentário para visitante;
+- criação de post com editor rico;
+- criação de comentários e respostas;
+- menções com `@username`;
+- previews de links externos;
+- filtros por tags após editar nomes, cores e ícones;
+- dashboard e tags com usuário admin;
+- bloqueio de dashboard/tags para usuário comum;
+- troca de idioma PT-BR/EN;
+- modo claro/escuro.
+
+### Observações de Segurança
+
+- As ações sensíveis usam autenticação e autorização no backend.
+- Dashboard e tags são protegidos por middleware administrativo.
+- Conteúdo HTML é sanitizado antes de ser salvo.
+- Preview de links externos aplica restrições contra URLs privadas e locais.
+- Visitantes não podem votar, comentar ou responder sem autenticação.
+- Campos de posts, comentários e perfil possuem limites de caracteres no frontend e validação no backend.
+
+### Tags do Projeto
+
+`Laravel` `Vue.js` `Inertia.js` `Tailwind CSS` `Docker` `MySQL` `Redis` `TipTap` `Forum` `UX`
+
+Desenvolvido por Jhon Amorim.
