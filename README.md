@@ -273,7 +273,7 @@ docker compose exec app php artisan test
 docker compose exec app npm run build
 ```
 
-It is also useful to validate:
+Features and Validations:
 
 - registration and login through the Welcome Page;
 - visitor access to posts;
@@ -578,7 +578,7 @@ docker compose exec app php artisan test
 docker compose exec app npm run build
 ```
 
-Também é útil validar:
+Funcionalidades e Validações:
 
 - cadastro e login pela Welcome Page;
 - acesso visitante a posts;
