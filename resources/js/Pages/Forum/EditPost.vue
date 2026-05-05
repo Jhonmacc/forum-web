@@ -476,30 +476,97 @@ const toggleLikePost = async () => {
 const toggleLikeNode = async (payload) => {
     if (!requireAuth('login')) return;
     const node = payload.node || payload;
+    const targetNode = findCommentNode(node) || node;
     const reactionType = payload.reactionType || 'liked';
-    const previousLiked = node.liked;
-    const previousCount = node.likes_count || 0;
-    const previousReaction = node.reaction_type || null;
-    const previousReactionCounts = { ...(node.reaction_counts || {}) };
+    const previousLiked = targetNode.liked;
+    const previousCount = targetNode.likes_count || 0;
+    const previousReaction = targetNode.reaction_type || null;
+    const previousReactionCounts = { ...(targetNode.reaction_counts || {}) };
     const removingSameReaction = previousLiked && previousReaction === reactionType;
 
-    node.liked = !removingSameReaction;
-    node.reaction_type = removingSameReaction ? null : reactionType;
-    node.likes_count = Math.max(0, previousCount + (!previousLiked ? 1 : removingSameReaction ? -1 : 0));
+    applyReactionState(targetNode, {
+        liked: !removingSameReaction,
+        likes_count: Math.max(0, previousCount + (!previousLiked ? 1 : removingSameReaction ? -1 : 0)),
+        reaction_type: removingSameReaction ? null : reactionType,
+        reaction_counts: optimisticReactionCounts(previousReactionCounts, previousReaction, reactionType, removingSameReaction),
+    });
+
+    if (targetNode !== node) {
+        applyReactionState(node, targetNode);
+    }
+
     try {
         const endpoint = node.kind === 'comment' ? `/comments/${node.id}/like` : `/replies/${node.id}/like`;
         const response = await axios.post(endpoint, { reaction_type: reactionType });
-        node.liked = response.data.liked;
-        node.likes_count = response.data.likes_count;
-        node.reaction_type = response.data.reaction_type;
-        node.reaction_counts = response.data.reaction_counts || {};
+        const serverState = {
+            liked: response.data.liked,
+            likes_count: response.data.likes_count,
+            reaction_type: response.data.reaction_type,
+            reaction_counts: response.data.reaction_counts || {},
+        };
+
+        applyReactionState(targetNode, serverState);
+
+        if (targetNode !== node) {
+            applyReactionState(node, serverState);
+        }
     } catch (error) {
-        node.liked = previousLiked;
-        node.likes_count = previousCount;
-        node.reaction_type = previousReaction;
-        node.reaction_counts = previousReactionCounts;
+        const previousState = {
+            liked: previousLiked,
+            likes_count: previousCount,
+            reaction_type: previousReaction,
+            reaction_counts: previousReactionCounts,
+        };
+
+        applyReactionState(targetNode, previousState);
+
+        if (targetNode !== node) {
+            applyReactionState(node, previousState);
+        }
+
         showAlert('error', t('common.error'), node.kind === 'comment' ? t('comments.error_like_comment') : t('comments.error_like_reply'));
     }
+};
+
+const findCommentNode = (node, nodes = post.value?.comments || []) => {
+    for (const currentNode of nodes) {
+        if (currentNode.kind === node.kind && currentNode.id === node.id) {
+            return currentNode;
+        }
+
+        const childNode = findCommentNode(node, currentNode.children || []);
+
+        if (childNode) {
+            return childNode;
+        }
+    }
+
+    return null;
+};
+
+const applyReactionState = (node, state) => {
+    node.liked = state.liked;
+    node.likes_count = state.likes_count;
+    node.reaction_type = state.reaction_type;
+    node.reaction_counts = { ...(state.reaction_counts || {}) };
+};
+
+const optimisticReactionCounts = (counts, previousReaction, nextReaction, removingSameReaction) => {
+    const nextCounts = { ...(counts || {}) };
+
+    if (previousReaction) {
+        nextCounts[previousReaction] = Math.max(0, Number(nextCounts[previousReaction] || 0) - 1);
+
+        if (nextCounts[previousReaction] === 0) {
+            delete nextCounts[previousReaction];
+        }
+    }
+
+    if (!removingSameReaction) {
+        nextCounts[nextReaction] = Number(nextCounts[nextReaction] || 0) + 1;
+    }
+
+    return nextCounts;
 };
 
 const openEditNode = (node) => {
