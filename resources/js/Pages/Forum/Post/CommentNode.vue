@@ -44,10 +44,11 @@
                         <div class="mt-2 text-sm leading-7 text-gray-700 dark:text-gray-200 comment-body" v-html="node.renderedHtml"></div>
 
                         <div class="mt-3 flex flex-wrap items-center gap-3 text-xs font-bold text-gray-500 dark:text-gray-400">
-                            <button @click="$emit('like', node)" class="inline-flex items-center gap-1.5 hover:text-red-500" :class="{ 'text-red-500': node.liked || node.liked_by_current_user }">
-                                <i :class="node.liked || node.liked_by_current_user ? 'fa-solid fa-heart' : 'fa-regular fa-heart'"></i>
-                                {{ node.likes_count || 0 }}
-                            </button>
+                            <ReactionPicker
+                                :reaction-type="node.reaction_type"
+                                :count="node.likes_count || 0"
+                                @select="$emit('like', { node, reactionType: $event })"
+                            />
                             <button @click="$emit('reply', node)" class="inline-flex items-center gap-1.5 hover:text-accent">
                                 <i class="fa-regular fa-comment"></i>
                                 {{ $t('comments.reply') }}
@@ -92,6 +93,7 @@ import { computed, ref } from 'vue';
 import moment from 'moment';
 import 'moment/dist/locale/pt-br';
 import { useI18n } from 'vue-i18n';
+import ReactionPicker from './ReactionPicker.vue';
 
 const props = defineProps({
     node: {

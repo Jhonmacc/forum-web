@@ -269,9 +269,13 @@ docker compose down -v
 After important changes, run:
 
 ```bash
-docker compose exec app php artisan test
+docker compose exec app composer test:safe
 docker compose exec app npm run build
 ```
+
+The test suite uses the isolated `forum_web_testing` database. Do not run `php artisan test`
+directly against the development database. The `test:safe` script refuses unsafe database
+names such as `forum_web` before PHPUnit can execute `RefreshDatabase`.
 
 Features and Validations:
 
@@ -574,9 +578,13 @@ docker compose down -v
 Após alterações importantes, recomenda-se executar:
 
 ```bash
-docker compose exec app php artisan test
+docker compose exec app composer test:safe
 docker compose exec app npm run build
 ```
+
+A suíte de testes usa o banco isolado `forum_web_testing`. Não rode `php artisan test`
+diretamente contra o banco de desenvolvimento. O script `test:safe` bloqueia nomes de
+banco inseguros como `forum_web` antes que o PHPUnit execute `RefreshDatabase`.
 
 Funcionalidades e Validações:
 

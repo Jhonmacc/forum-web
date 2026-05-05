@@ -16,6 +16,13 @@ class SettingsController extends Controller
 
         Setting::set('forum_name', $validated['forum_name']);
 
+        if ($request->expectsJson()) {
+            return response()->json([
+                'message' => __('messages.settings_updated'),
+                'forum_name' => $validated['forum_name'],
+            ]);
+        }
+
         return back()->with('success', __('messages.settings_updated'));
     }
 }

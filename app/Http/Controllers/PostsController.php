@@ -213,10 +213,7 @@ public function uploadImage(Request $request)
 
         $markReply = function ($reply) use (&$markReply, $currentUserId, $sanitizer) {
             $reply->body = $sanitizer->cleanComment($reply->body);
-            $reply->liked_by_current_user = $currentUserId
-                ? $reply->likes->contains('user_id', $currentUserId)
-                : false;
-            $reply->likes_count = $reply->likes->count();
+            $this->setReactionMetadata($reply, $currentUserId);
             $reply->replies_count = $reply->children ? $reply->children->count() : 0;
 
             if ($reply->children) {
@@ -228,10 +225,7 @@ public function uploadImage(Request $request)
 
         $post->comments->each(function ($comment) use ($currentUserId, $markReply, $sanitizer) {
             $comment->content = $sanitizer->cleanComment($comment->content);
-            $comment->liked_by_current_user = $currentUserId
-                ? $comment->likes->contains('user_id', $currentUserId)
-                : false;
-            $comment->likes_count = $comment->likes->count();
+            $this->setReactionMetadata($comment, $currentUserId);
             $comment->replies_count = $comment->replies ? $comment->replies->count() : 0;
 
             if ($comment->replies) {
@@ -274,6 +268,23 @@ public function uploadImage(Request $request)
         'likes_count' => $post->likes()->count(),
     ], 200);
 }
+
+    private function setReactionMetadata($node, ?int $currentUserId): void
+    {
+        $currentUserLike = $currentUserId
+            ? $node->likes->firstWhere('user_id', $currentUserId)
+            : null;
+
+        $node->liked_by_current_user = (bool) $currentUserLike;
+        $node->current_user_reaction_type = $currentUserLike
+            ? ($currentUserLike->reaction_type ?: 'liked')
+            : null;
+        $node->likes_count = $node->likes->count();
+        $node->reaction_counts = $node->likes
+            ->map(fn ($like) => $like->reaction_type ?: 'liked')
+            ->countBy()
+            ->all();
+    }
 
     public function edit($postId)
     {

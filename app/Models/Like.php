@@ -8,7 +8,7 @@ class Like extends Model
 {
     use HasFactory;
 
-    protected $fillable = ['user_id', 'post_id', 'comment_id', 'reply_id'];
+    protected $fillable = ['user_id', 'post_id', 'comment_id', 'reply_id', 'reaction_type'];
 
     public function user()
     {

@@ -14,7 +14,7 @@ class EmailVerificationTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_email_verification_screen_can_be_rendered(): void
+    public function test_email_verification_screen_is_not_exposed(): void
     {
         if (! Features::enabled(Features::emailVerification())) {
             $this->markTestSkipped('Email verification not enabled.');
@@ -24,7 +24,7 @@ class EmailVerificationTest extends TestCase
 
         $response = $this->actingAs($user)->get('/email/verify');
 
-        $response->assertStatus(200);
+        $response->assertNotFound();
     }
 
     public function test_email_can_be_verified(): void
@@ -48,7 +48,7 @@ class EmailVerificationTest extends TestCase
         Event::assertDispatched(Verified::class);
 
         $this->assertTrue($user->fresh()->hasVerifiedEmail());
-        $response->assertRedirect(route('dashboard', absolute: false).'?verified=1');
+        $response->assertRedirect('/forum?verified=1');
     }
 
     public function test_email_can_not_verified_with_invalid_hash(): void

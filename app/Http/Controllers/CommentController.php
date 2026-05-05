@@ -19,6 +19,15 @@ use Illuminate\Support\Facades\Validator;
 
 class CommentController extends Controller
 {
+    private const REACTION_TYPES = [
+        'liked',
+        'congrats',
+        'support',
+        'love',
+        'amazing',
+        'funny',
+    ];
+
     private function extractMentions($text)
     {
         return app(HtmlContentSanitizer::class)->extractMentionUsernames($text);
@@ -70,14 +79,26 @@ class CommentController extends Controller
 
     public function toggleLike(Request $request, Comment $comment)
     {
+        $reactionType = $this->validatedReactionType($request);
         $user = Auth::user();
         $like = $comment->likes()->where('user_id', $user->id)->first();
 
         if ($like) {
-            $like->delete();
-            $liked = false;
+            $currentReaction = $like->reaction_type ?: 'liked';
+
+            if ($currentReaction === $reactionType) {
+                $like->delete();
+                $liked = false;
+                $reactionType = null;
+            } else {
+                $like->update(['reaction_type' => $reactionType]);
+                $liked = true;
+            }
         } else {
-            $comment->likes()->create(['user_id' => $user->id]);
+            $comment->likes()->create([
+                'user_id' => $user->id,
+                'reaction_type' => $reactionType,
+            ]);
             $liked = true;
 
             if ($comment->user_id !== $user->id) {
@@ -88,19 +109,33 @@ class CommentController extends Controller
         return response()->json([
             'liked' => $liked,
             'likes_count' => $comment->likes()->count(),
+            'reaction_type' => $reactionType,
+            'reaction_counts' => $this->reactionCounts($comment),
         ]);
     }
 
     public function toggleLikeReply(Request $request, Reply $reply)
     {
+        $reactionType = $this->validatedReactionType($request);
         $user = Auth::user();
         $existingLike = $reply->likes()->where('user_id', $user->id)->first();
 
         if ($existingLike) {
-            $existingLike->delete();
-            $liked = false;
+            $currentReaction = $existingLike->reaction_type ?: 'liked';
+
+            if ($currentReaction === $reactionType) {
+                $existingLike->delete();
+                $liked = false;
+                $reactionType = null;
+            } else {
+                $existingLike->update(['reaction_type' => $reactionType]);
+                $liked = true;
+            }
         } else {
-            $reply->likes()->create(['user_id' => $user->id]);
+            $reply->likes()->create([
+                'user_id' => $user->id,
+                'reaction_type' => $reactionType,
+            ]);
             $liked = true;
 
             if ($reply->user_id !== $user->id) {
@@ -111,7 +146,27 @@ class CommentController extends Controller
         return response()->json([
             'liked' => $liked,
             'likes_count' => $reply->likes()->count(),
+            'reaction_type' => $reactionType,
+            'reaction_counts' => $this->reactionCounts($reply),
         ]);
+    }
+
+    private function validatedReactionType(Request $request): string
+    {
+        $validated = $request->validate([
+            'reaction_type' => 'nullable|string|in:' . implode(',', self::REACTION_TYPES),
+        ]);
+
+        return $validated['reaction_type'] ?? 'liked';
+    }
+
+    private function reactionCounts(Comment|Reply $node): array
+    {
+        return $node->likes()
+            ->get()
+            ->map(fn ($like) => $like->reaction_type ?: 'liked')
+            ->countBy()
+            ->all();
     }
 
     public function show(Comment $comment)

@@ -56,5 +56,18 @@
     "liked_reply": "You liked the reply!",
     "error_like_comment": "An error occurred while trying to like the comment.",
     "error_like_reply": "An error occurred while trying to like the reply.",
-    "rich_text_hint": "You can use formatting, images, @users, and /post to reference discussions."
+    "rich_text_hint": "You can use formatting, images, @users, and /post to reference discussions.",
+    "choose_reaction": "Choose reaction",
+    "reaction_liked": "Liked",
+    "reaction_liked_active": "You liked this",
+    "reaction_congrats": "Congrats",
+    "reaction_congrats_active": "You congratulated this",
+    "reaction_support": "Support",
+    "reaction_support_active": "You supported this",
+    "reaction_love": "Love",
+    "reaction_love_active": "You loved this",
+    "reaction_amazing": "Amazing",
+    "reaction_amazing_active": "You found this amazing",
+    "reaction_funny": "Funny",
+    "reaction_funny_active": "You found this funny"
 }

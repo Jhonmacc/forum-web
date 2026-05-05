@@ -173,7 +173,7 @@
                             </div>
                             <h3 class="font-extrabold text-gray-900 dark:text-white">{{ $t('profile.admin_settings') }}</h3>
                         </div>
-                        <form @submit.prevent="saveSettings" class="flex flex-col sm:flex-row items-end gap-3">
+                        <form @submit.stop.prevent="saveSettings" class="flex flex-col sm:flex-row items-end gap-3">
                             <div class="flex-1 w-full">
                                 <label class="block text-xs font-bold tracking-wider text-gray-400 dark:text-gray-500 uppercase mb-1.5">
                                     {{ $t('profile.forum_name_label') }}
@@ -423,11 +423,13 @@ const saveSettings = async () => {
         await axios.put('/admin/settings', { forum_name: forumNameInput.value });
         settingsSaved.value = true;
         setTimeout(() => { settingsSaved.value = false; }, 3000);
-    } catch {
+    } catch (error) {
+        const message = error.response?.data?.message || t('common.error');
+
         Swal.fire({
             icon: 'error',
             title: t('common.error'),
-            text: t('common.error'),
+            text: message,
             background: isDarkMode() ? '#111827' : '#ffffff',
             color: isDarkMode() ? '#f9fafb' : '#111827',
         });

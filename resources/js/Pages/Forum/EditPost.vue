@@ -353,6 +353,8 @@ const normalizeComment = (comment) => ({
     text: comment.content,
     renderedHtml: renderRichContent(comment.content),
     liked: Boolean(comment.liked_by_current_user || comment.likes?.some(like => like.user_id === currentUserId.value)),
+    reaction_type: currentUserReaction(comment),
+    reaction_counts: comment.reaction_counts || reactionCounts(comment.likes || []),
     likes_count: comment.likes_count ?? comment.likes?.length ?? 0,
     children: (comment.replies || []).map(reply => normalizeReply(reply)),
 });
@@ -363,9 +365,27 @@ const normalizeReply = (reply) => ({
     text: reply.body,
     renderedHtml: renderRichContent(reply.body),
     liked: Boolean(reply.liked_by_current_user || reply.likes?.some(like => like.user_id === currentUserId.value)),
+    reaction_type: currentUserReaction(reply),
+    reaction_counts: reply.reaction_counts || reactionCounts(reply.likes || []),
     likes_count: reply.likes_count ?? reply.likes?.length ?? 0,
     children: (reply.children || []).map(child => normalizeReply(child)),
 });
+
+const currentUserReaction = (node) => {
+    if (node.current_user_reaction_type) {
+        return node.current_user_reaction_type;
+    }
+
+    const currentUserLike = node.likes?.find(like => like.user_id === currentUserId.value);
+
+    return currentUserLike ? (currentUserLike.reaction_type || 'liked') : null;
+};
+
+const reactionCounts = (likes = []) => likes.reduce((counts, like) => {
+    const type = like.reaction_type || 'liked';
+    counts[type] = (counts[type] || 0) + 1;
+    return counts;
+}, {});
 
 const renderRichContent = (content = '') => {
     const value = String(content || '');
@@ -453,20 +473,31 @@ const toggleLikePost = async () => {
     }
 };
 
-const toggleLikeNode = async (node) => {
+const toggleLikeNode = async (payload) => {
     if (!requireAuth('login')) return;
+    const node = payload.node || payload;
+    const reactionType = payload.reactionType || 'liked';
     const previousLiked = node.liked;
     const previousCount = node.likes_count || 0;
-    node.liked = !previousLiked;
-    node.likes_count = Math.max(0, previousCount + (previousLiked ? -1 : 1));
+    const previousReaction = node.reaction_type || null;
+    const previousReactionCounts = { ...(node.reaction_counts || {}) };
+    const removingSameReaction = previousLiked && previousReaction === reactionType;
+
+    node.liked = !removingSameReaction;
+    node.reaction_type = removingSameReaction ? null : reactionType;
+    node.likes_count = Math.max(0, previousCount + (!previousLiked ? 1 : removingSameReaction ? -1 : 0));
     try {
         const endpoint = node.kind === 'comment' ? `/comments/${node.id}/like` : `/replies/${node.id}/like`;
-        const response = await axios.post(endpoint);
+        const response = await axios.post(endpoint, { reaction_type: reactionType });
         node.liked = response.data.liked;
         node.likes_count = response.data.likes_count;
+        node.reaction_type = response.data.reaction_type;
+        node.reaction_counts = response.data.reaction_counts || {};
     } catch (error) {
         node.liked = previousLiked;
         node.likes_count = previousCount;
+        node.reaction_type = previousReaction;
+        node.reaction_counts = previousReactionCounts;
         showAlert('error', t('common.error'), node.kind === 'comment' ? t('comments.error_like_comment') : t('comments.error_like_reply'));
     }
 };

@@ -56,5 +56,18 @@
     "liked_reply": "Você curtiu a resposta!",
     "error_like_comment": "Ocorreu um erro ao tentar curtir o comentário.",
     "error_like_reply": "Ocorreu um erro ao tentar curtir a resposta.",
-    "rich_text_hint": "Você pode usar formatação, imagens, @usuários e /post para referenciar discussões."
+    "rich_text_hint": "Você pode usar formatação, imagens, @usuários e /post para referenciar discussões.",
+    "choose_reaction": "Escolher reação",
+    "reaction_liked": "Gostei",
+    "reaction_liked_active": "Você gostou",
+    "reaction_congrats": "Parabéns",
+    "reaction_congrats_active": "Você parabenizou",
+    "reaction_support": "Apoio",
+    "reaction_support_active": "Você apoiou",
+    "reaction_love": "Amei",
+    "reaction_love_active": "Você amou",
+    "reaction_amazing": "Incrível",
+    "reaction_amazing_active": "Você achou incrível",
+    "reaction_funny": "Divertido",
+    "reaction_funny_active": "Você achou divertido"
 }

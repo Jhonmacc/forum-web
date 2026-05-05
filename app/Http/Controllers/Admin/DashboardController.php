@@ -110,6 +110,7 @@ class DashboardController extends Controller
             ->latest()
             ->limit(6)
             ->get()
+            ->toBase()
             ->map(fn (Post $post) => [
                 'type' => 'post',
                 'icon' => 'fa-solid fa-message',
@@ -126,6 +127,7 @@ class DashboardController extends Controller
             ->latest()
             ->limit(6)
             ->get()
+            ->toBase()
             ->map(fn (Comment $comment) => [
                 'type' => 'comment',
                 'icon' => 'fa-solid fa-comment-dots',
@@ -141,6 +143,7 @@ class DashboardController extends Controller
             ->latest()
             ->limit(6)
             ->get(['id', 'name', 'username', 'email', 'profile_photo_path', 'created_at'])
+            ->toBase()
             ->map(fn (User $user) => [
                 'type' => 'member',
                 'icon' => 'fa-solid fa-user-plus',
